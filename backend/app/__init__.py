@@ -1,0 +1,1 @@
+"""Simplify backend application package."""

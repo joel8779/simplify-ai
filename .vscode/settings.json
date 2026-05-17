@@ -1,0 +1,18 @@
+{
+  "terminal.integrated.env.windows": {
+    "Path": "C:\\Users\\Lenovo\\bin;C:\\Program Files\\nodejs;${env:Path}"
+  },
+  "terminal.integrated.profiles.windows": {
+    "PowerShell": {
+      "source": "PowerShell",
+      "args": [
+        "-NoExit",
+        "-ExecutionPolicy",
+        "RemoteSigned",
+        "-Command",
+        "Set-Alias npm 'C:\\Program Files\\nodejs\\npm.cmd' -Scope Global -Force; Set-Alias npx 'C:\\Program Files\\nodejs\\npx.cmd' -Scope Global -Force"
+      ]
+    }
+  },
+  "terminal.integrated.defaultProfile.windows": "PowerShell"
+}
