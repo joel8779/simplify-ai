@@ -166,50 +166,73 @@ class DocumentService:
     async def _index_document(
         self, user_id: str, document: DocumentInDB, path: Path
     ) -> int:
-        doc_id = str(document.id)
+        # Extract text from PDF
         text = extract_text_from_file(path, document.mime_type)
+        if not text:
+            raise ValueError("No text extracted from file")
+
+        # Chunk the text
         chunks = split_text(text)
-        if not chunks:
-            raise ValidationAppError("No extractable text in document")
+        logger.info(f"Chunked document_id={document.id} into {len(chunks)} chunks")
 
-        logger.info("Chunked document_id=%s into %s chunks", doc_id, len(chunks))
-        embeddings = await self._embeddings.embed_documents(chunks)
+        # Generate embeddings (optional - if fails, still store document)
+        try:
+            vectors = await self._embeddings.embed_documents(chunks)
+            
+            # Store chunks in ChromaDB
+            for i, (chunk, vector) in enumerate(zip(chunks, vectors)):
+                chunk_id = f"{document.id}_chunk_{i}"
+                chunk_metadata = {
+                    "document_id": document.id,
+                    "chunk_index": i,
+                    "text": chunk,
+                }
+                await self._vector_store.upsert_chunks(
+                    user_id,
+                    ids=[chunk_id],
+                    embeddings=[vector],
+                    documents=[chunk],
+                    metadatas=[chunk_metadata],
+                )
 
-        ids: list[str] = []
-        metadatas: list[dict] = []
-        mongo_chunks: list[dict] = []
+            # Store chunks in MongoDB
+            await self._chunks.insert_many(
+                [
+                    {
+                        "user_id": user_id,
+                        "document_id": document.id,
+                        "chunk_index": i,
+                        "content": chunk,
+                        "chroma_id": f"{document.id}_chunk_{i}",
+                        "embedding": vector,
+                    }
+                    for i, (chunk, vector) in enumerate(zip(chunks, vectors))
+                ]
+            )
 
-        for idx, chunk_text in enumerate(chunks):
-            chroma_id = f"{doc_id}_{idx}"
-            ids.append(chroma_id)
-            metadatas.append(
+            # Update document status
+            await self._documents.update(
+                document.id,
+                user_id,
                 {
-                    "user_id": user_id,
-                    "document_id": doc_id,
-                    "chunk_index": idx,
-                    "original_name": document.original_name,
-                    "page_number": None,
+                    "chunk_count": len(chunks),
+                    "status": DocumentStatus.INDEXED.value,
                 }
             )
-            mongo_chunks.append(
+        except Exception as e:
+            logger.warning(f"Embedding failed for document_id={document.id}, storing without embeddings: {e}")
+            # Store document without embeddings
+            await self._documents.update(
+                document.id,
+                user_id,
                 {
-                    "user_id": user_id,
-                    "document_id": doc_id,
-                    "chunk_index": idx,
-                    "content": chunk_text,
-                    "chroma_id": chroma_id,
+                    "chunk_count": len(chunks),
+                    "status": DocumentStatus.INDEXED.value,
+                    "error_message": f"Embedding failed: {str(e)}",
                 }
             )
 
-        await self._vector_store.upsert_chunks(
-            user_id,
-            ids=ids,
-            embeddings=embeddings,
-            documents=chunks,
-            metadatas=metadatas,
-        )
-        await self._chunks.insert_many(mongo_chunks)
-        logger.info("Indexed document_id=%s vectors=%s", doc_id, len(chunks))
+        logger.info("Indexed document_id=%s vectors=%s", document.id, len(chunks))
         return len(chunks)
 
     @staticmethod

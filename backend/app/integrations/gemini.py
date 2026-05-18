@@ -56,21 +56,29 @@ class GeminiClient:
                 return await asyncio.to_thread(fn)
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
+                logger.error(
+                    "Gemini %s attempt %s/%s failed: %s (type: %s, retryable: %s)",
+                    operation,
+                    attempt,
+                    self._max_retries,
+                    str(exc),
+                    type(exc).__name__,
+                    self._is_retryable(exc),
+                )
                 if attempt >= self._max_retries or not self._is_retryable(exc):
                     break
                 delay = self._retry_base_delay * (2 ** (attempt - 1))
                 logger.warning(
-                    "Gemini %s failed (attempt %s/%s), retrying in %.1fs: %s",
+                    "Gemini %s failed (attempt %s/%s), retrying in %.1fs",
                     operation,
                     attempt,
                     self._max_retries,
                     delay,
-                    exc,
                 )
                 await asyncio.sleep(delay)
         raise GeminiServiceError(
             f"Gemini {operation} failed after {self._max_retries} attempts",
-            details={"error": str(last_error)},
+            details={"error": str(last_error), "error_type": type(last_error).__name__},
         ) from last_error
 
     async def generate_chat(

@@ -11,7 +11,11 @@ interface FileWithPreview extends File {
   preview?: string;
 }
 
-export function DocumentUploader() {
+interface DocumentUploaderProps {
+  onUploadSuccess?: () => void;
+}
+
+export function DocumentUploader({ onUploadSuccess }: DocumentUploaderProps) {
   const { isUploading, progress, uploaded, failed, error, upload, reset } = useUpload();
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -59,6 +63,7 @@ export function DocumentUploader() {
     try {
       await upload(files);
       setFiles([]);
+      onUploadSuccess?.();
     } catch (err) {
       console.error("Upload failed:", err);
     }

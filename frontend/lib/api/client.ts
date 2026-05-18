@@ -11,9 +11,10 @@ export class ApiError extends Error {
   }
 }
 
-interface RequestOptions extends RequestInit {
+interface RequestOptions extends Omit<RequestInit, 'body'> {
   headers?: Record<string, string>;
   params?: Record<string, string>;
+  body?: BodyInit | null;
 }
 
 async function request<T>(
@@ -30,18 +31,25 @@ async function request<T>(
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
   
+  const isFormData = options.body instanceof FormData;
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...options.headers,
   };
+
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  const body = isFormData ? options.body : JSON.stringify(options.body);
+
   const response = await fetch(url.toString(), {
     ...options,
     headers,
+    body,
   });
 
   const data = await response.json().catch(() => null);
@@ -65,21 +73,21 @@ export const api = {
     request<T>(endpoint, { 
       ...options, 
       method: 'POST', 
-      body: JSON.stringify(body) 
+      body: body as BodyInit | null
     }),
   
   put: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>(endpoint, { 
       ...options, 
       method: 'PUT', 
-      body: JSON.stringify(body) 
+      body: JSON.stringify(body) as BodyInit
     }),
   
   patch: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>(endpoint, { 
       ...options, 
       method: 'PATCH', 
-      body: JSON.stringify(body) 
+      body: JSON.stringify(body) as BodyInit
     }),
   
   delete: <T>(endpoint: string, options?: RequestOptions) =>

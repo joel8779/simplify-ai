@@ -27,11 +27,7 @@ export const documentService = {
       formData.append('files', file);
     });
 
-    return await api.post<DocumentUploadResponse>('/api/v1/documents/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    return await api.post<DocumentUploadResponse>('/api/v1/documents/upload', formData);
   },
 
   async listDocuments(): Promise<DocumentListResponse> {

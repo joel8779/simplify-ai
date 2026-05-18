@@ -3,10 +3,12 @@ from typing import List
 from fastapi import APIRouter, Depends, File, UploadFile, status
 
 from app.api.deps import CurrentUser, get_document_service
+from app.core.logging import get_logger
 from app.schemas.document import DocumentListResponse, DocumentResponse, DocumentUploadResponse
 from app.services.document_service import DocumentService
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+logger = get_logger(__name__)
 
 
 @router.get("", response_model=DocumentListResponse)
@@ -37,6 +39,10 @@ async def upload_documents(
     files: List[UploadFile] = File(...),
     document_service: DocumentService = Depends(get_document_service),
 ) -> DocumentUploadResponse:
+    logger.info(f"Upload request received from user {current_user.id}")
+    logger.info(f"Files received: {len(files)}")
+    for f in files:
+        logger.info(f"  - {f.filename} ({f.content_type})")
     return await document_service.upload_documents(str(current_user.id), files)
 
 

@@ -47,21 +47,11 @@ class AuthService:
         return await self._issue_tokens(user)
 
     async def login(self, payload: LoginRequest) -> TokenResponse:
-        logger.info(f"Login attempt for email: {payload.email}")
         user = await self._users.find_by_email(payload.email)
-        logger.info(f"User found: {user is not None}")
-        if user:
-            logger.info(f"User email in DB: {user.email}, is_active: {user.is_active}")
-            logger.info(f"Hashed password exists: {bool(user.hashed_password)}")
-            password_valid = verify_password(payload.password, user.hashed_password)
-            logger.info(f"Password verification result: {password_valid}")
         if not user or not verify_password(payload.password, user.hashed_password):
-            logger.warning(f"Login failed for email: {payload.email}")
             raise UnauthorizedError("Invalid email or password")
         if not user.is_active:
-            logger.warning(f"Account disabled for email: {payload.email}")
             raise UnauthorizedError("Account is disabled")
-        logger.info(f"Login successful for email: {payload.email}")
         return await self._issue_tokens(user)
 
     async def refresh(self, raw_refresh_token: str) -> TokenResponse:
