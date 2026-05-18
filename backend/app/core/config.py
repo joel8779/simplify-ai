@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     host: str = "0.0.0.0"
     port: int = 8000
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = ["http://localhost:3000", "https://simplify-ai-lilac.vercel.app"]
 
     mongodb_uri: str = Field(..., description="MongoDB Atlas connection string")
     mongodb_db_name: str = "simplify"
