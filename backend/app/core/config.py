@@ -57,8 +57,7 @@ class Settings(BaseSettings):
     gemini_max_retries: int = 3
     gemini_retry_base_delay_seconds: float = 1.0
 
-    chroma_persist_dir: str = "./data/chroma"
-    vector_store_provider: str = "chroma"
+    vector_store_provider: str = "pinecone"
     pinecone_api_key: str = ""
     pinecone_index_name: str = ""
     pinecone_index_host: str = ""
@@ -145,12 +144,9 @@ class Settings(BaseSettings):
     @classmethod
     def validate_vector_store_provider(cls, value: str) -> str:
         normalized = value.strip().lower()
-        allowed = {"chroma", "pinecone", "pinecone_with_chroma_fallback"}
+        allowed = {"pinecone"}
         if normalized not in allowed:
-            raise ValueError(
-                "VECTOR_STORE_PROVIDER must be one of: chroma, pinecone, "
-                "pinecone_with_chroma_fallback"
-            )
+            raise ValueError("VECTOR_STORE_PROVIDER must be pinecone")
         return normalized
 
     @field_validator("pinecone_metric")

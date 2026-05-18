@@ -34,6 +34,6 @@ class DocumentChunkInDB(MongoModel):
     document_id: str
     chunk_index: int
     content: str
-    chroma_id: str
+    vector_id: str
     page_number: Optional[int] = None
     created_at: datetime = Field(default_factory=utc_now)

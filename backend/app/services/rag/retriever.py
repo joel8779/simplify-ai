@@ -21,7 +21,7 @@ class RetrievedChunk:
     score: float
     page_number: int | None
     original_name: str
-    chroma_id: str | None = None
+    vector_id: str | None = None
 
 
 class RAGRetriever:
@@ -124,7 +124,7 @@ class RAGRetriever:
                     score=round(score, 4),
                     page_number=page_number,
                     original_name=original_name,
-                    chroma_id=vector_id,
+                    vector_id=vector_id,
                 )
             )
 

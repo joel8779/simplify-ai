@@ -19,7 +19,6 @@ def setup_logging(*, debug: bool = False) -> None:
     root.addHandler(handler)
     root.setLevel(level)
     logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("chromadb").setLevel(logging.WARNING)
     logging.getLogger("pymongo").setLevel(logging.WARNING)
 
 

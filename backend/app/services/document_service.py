@@ -210,7 +210,7 @@ class DocumentService:
                 details={"expected": len(chunks), "received": len(vectors)},
             )
 
-        chroma_ids = [f"{doc_id}_chunk_{chunk.chunk_index}" for chunk in chunks]
+        vector_ids = [f"{doc_id}_chunk_{chunk.chunk_index}" for chunk in chunks]
         metadatas = []
         for chunk in chunks:
             metadata = {
@@ -229,7 +229,7 @@ class DocumentService:
         try:
             await self._vector_store.upsert_chunks(
                 user_id,
-                ids=chroma_ids,
+                ids=vector_ids,
                 embeddings=vectors,
                 documents=texts,
                 metadatas=metadatas,
@@ -243,10 +243,10 @@ class DocumentService:
                         "document_id": doc_id,
                         "chunk_index": chunk.chunk_index,
                         "content": chunk.content,
-                        "chroma_id": chroma_id,
+                        "vector_id": vector_id,
                         "page_number": chunk.page_number,
                     }
-                    for chunk, chroma_id in zip(chunks, chroma_ids)
+                    for chunk, vector_id in zip(chunks, vector_ids)
                 ]
             )
         except Exception:
