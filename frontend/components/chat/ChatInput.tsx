@@ -13,16 +13,18 @@ interface ChatInputProps {
   disclaimer?: string;
   defaultValue?: string;
   toolbar?: React.ReactNode;
+  leftActions?: React.ReactNode;
 }
 
 export function ChatInput({
   onSend,
   onStop,
   isStreaming = false,
-  placeholder = "Ask anything about your documents…",
+  placeholder = "Ask anything about your documents...",
   disclaimer = "Simplify can make mistakes. Verify important information.",
   defaultValue = "",
   toolbar,
+  leftActions,
 }: ChatInputProps) {
   const [value, setValue] = useState(defaultValue);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -58,53 +60,65 @@ export function ChatInput({
   const canSend = value.trim().length > 0 && !isStreaming;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center bg-gradient-to-t from-background via-background/95 to-transparent px-4 pb-4 pt-8 md:pb-6">
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center bg-gradient-to-t from-background via-background/95 to-transparent px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-10 sm:px-4 md:pb-[calc(env(safe-area-inset-bottom)+1.25rem)]">
       <div className="pointer-events-auto w-full max-w-3xl">
-        {toolbar}
-
         <div
           className={cn(
-            "flex items-end gap-2 rounded-3xl border border-border/80 bg-card/90 p-2 shadow-2xl shadow-black/20 backdrop-blur-xl",
-            "transition-all duration-300 focus-within:border-primary/40 focus-within:shadow-primary/10"
+            "overflow-hidden rounded-[1.65rem] border border-border/70 bg-card/85 shadow-2xl shadow-black/20 backdrop-blur-xl",
+            "transition-all duration-300 focus-within:border-primary/45 focus-within:shadow-[0_0_0_1px_hsl(var(--primary)/0.18),0_18px_60px_rgba(0,0,0,0.32)]"
           )}
         >
-          <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onInput={handleInput}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            rows={1}
-            className="max-h-40 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-          />
-
-          {isStreaming ? (
-            <Button
-              size="icon"
-              variant="secondary"
-              className="mb-0.5 h-10 w-10 shrink-0 rounded-full"
-              onClick={onStop}
-              aria-label="Stop generating"
-            >
-              <Square className="h-4 w-4 fill-current" />
-            </Button>
-          ) : (
-            <Button
-              size="icon"
-              className={cn(
-                "mb-0.5 h-10 w-10 shrink-0 rounded-full transition-all duration-200",
-                canSend
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "bg-muted text-muted-foreground"
-              )}
-              onClick={handleSend}
-              disabled={!canSend}
-              aria-label="Send message"
-            >
-              <ArrowUp className="h-4 w-4" />
-            </Button>
+          {toolbar && (
+            <div className="border-b border-border/35 px-3 pb-2 pt-3 sm:px-4">
+              {toolbar}
+            </div>
           )}
+
+          <div className="px-3 pt-1.5 sm:px-4">
+            <textarea
+              ref={textareaRef}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onInput={handleInput}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              rows={1}
+              className="max-h-40 min-h-[46px] w-full resize-none bg-transparent px-1 py-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-2 px-3 pb-3 sm:px-4">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              {leftActions}
+            </div>
+
+            {isStreaming ? (
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-9 w-9 shrink-0 rounded-full transition-transform duration-200 hover:scale-105"
+                onClick={onStop}
+                aria-label="Stop generating"
+              >
+                <Square className="h-4 w-4 fill-current" />
+              </Button>
+            ) : (
+              <Button
+                size="icon"
+                className={cn(
+                  "h-9 w-9 shrink-0 rounded-full transition-all duration-200",
+                  canSend
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground"
+                )}
+                onClick={handleSend}
+                disabled={!canSend}
+                aria-label="Send message"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
 
         <p className="mt-2 text-center text-xs text-muted-foreground/70">

@@ -80,14 +80,14 @@ export const api = {
     request<T>(endpoint, { 
       ...options, 
       method: 'PUT', 
-      body: JSON.stringify(body) as BodyInit
+      body: body as BodyInit | null
     }),
   
   patch: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>(endpoint, { 
       ...options, 
       method: 'PATCH', 
-      body: JSON.stringify(body) as BodyInit
+      body: body as BodyInit | null
     }),
   
   delete: <T>(endpoint: string, options?: RequestOptions) =>

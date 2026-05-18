@@ -21,7 +21,7 @@ export function EmptyChatState({
   activeDocumentCount = 0,
 }: EmptyChatStateProps) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-4 pb-52 animate-fade-in md:pb-56">
+    <div className="flex flex-1 flex-col items-center justify-center px-4 pb-[18rem] animate-fade-in md:pb-[20rem]">
       <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500/20 to-violet-600/20 ring-1 ring-white/10">
         <Sparkles className="h-8 w-8 text-violet-400" />
       </div>

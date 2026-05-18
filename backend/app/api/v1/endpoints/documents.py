@@ -16,7 +16,9 @@ async def list_documents(
     current_user: CurrentUser,
     document_service: DocumentService = Depends(get_document_service),
 ) -> DocumentListResponse:
+    logger.info(f"List documents request from user {current_user.id}")
     items = await document_service.list_documents(str(current_user.id))
+    logger.info(f"Returning {len(items)} documents for user {current_user.id}")
     return DocumentListResponse(items=items, total=len(items))
 
 

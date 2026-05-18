@@ -1,7 +1,7 @@
-from app.core.exceptions import UnauthorizedError
+from app.core.exceptions import ConflictError, UnauthorizedError
 from app.core.security import hash_password, verify_password
 from app.models.user import UserInDB
-from app.repositories.user_repository import UserRepository
+from app.db.repositories.user_repo import UserRepository
 from app.schemas.user import PasswordChangeRequest, UserPublic, UserUpdateRequest
 from app.services.auth_service import AuthService
 
@@ -20,6 +20,13 @@ class UserService:
         self, user_id: str, payload: UserUpdateRequest
     ) -> UserPublic:
         updates = payload.model_dump(exclude_unset=True)
+        if "email" in updates and updates["email"]:
+            next_email = str(updates["email"]).lower()
+            existing = await self._users.find_by_email(next_email)
+            if existing and str(existing.id) != user_id:
+                raise ConflictError("Email already registered")
+            updates["email"] = next_email
+
         user = await self._users.update(user_id, updates)
         if not user:
             raise UnauthorizedError("User not found")

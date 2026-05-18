@@ -6,6 +6,7 @@ import { Upload, FileText, X, CheckCircle, AlertCircle } from "lucide-react";
 import { useUpload } from "@/hooks/useUpload";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { notifyDocumentsChanged } from "@/lib/document-events";
 
 interface FileWithPreview extends File {
   preview?: string;
@@ -63,6 +64,7 @@ export function DocumentUploader({ onUploadSuccess }: DocumentUploaderProps) {
     try {
       await upload(files);
       setFiles([]);
+      notifyDocumentsChanged();
       onUploadSuccess?.();
     } catch (err) {
       console.error("Upload failed:", err);

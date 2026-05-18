@@ -61,17 +61,6 @@ export function AppearanceSettings() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-lg border border-border/40 bg-background/30 px-4 py-3">
-          <div>
-            <p className="text-sm font-medium">Compact chat layout</p>
-            <p className="text-xs text-muted-foreground">
-              Reduce spacing in the message thread.
-            </p>
-          </div>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            Soon
-          </span>
-        </div>
       </div>
     </SettingsSection>
   );

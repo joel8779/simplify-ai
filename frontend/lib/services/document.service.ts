@@ -1,13 +1,20 @@
 import { api } from '@/lib/api/client';
+import type { Document } from '@/lib/types/document';
 
 export interface DocumentMetadata {
   id: string;
+  filename?: string;
   original_name: string;
   mime_type: string;
   size_bytes: number;
   status: 'processing' | 'indexed' | 'failed';
   chunk_count: number;
+  error_message?: string | null;
+  storage_provider?: string;
+  storage_path?: string | null;
+  file_url?: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface DocumentUploadResponse {
@@ -42,3 +49,21 @@ export const documentService = {
     await api.delete(`/api/v1/documents/${documentId}`);
   },
 };
+
+export function mapDocumentMetadataToDocument(doc: DocumentMetadata): Document {
+  return {
+    id: doc.id,
+    name: doc.original_name,
+    size: formatFileSize(doc.size_bytes),
+    status: doc.status,
+    uploadedAt: doc.created_at,
+  };
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${Math.round((bytes / Math.pow(k, i)) * 100) / 100} ${sizes[i]}`;
+}

@@ -18,5 +18,26 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class SignupResponse(BaseModel):
+    email: EmailStr
+    verification_required: bool = True
+    expires_in_seconds: int
+    resend_after_seconds: int
+
+
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class ResendOtpRequest(BaseModel):
+    email: EmailStr
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: str | None = None
+    all_devices: bool = False

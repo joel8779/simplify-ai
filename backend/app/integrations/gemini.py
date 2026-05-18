@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import time
-from typing import Any, List, Optional
+from typing import Any, AsyncGenerator, List, Optional
 
 import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
@@ -105,6 +104,43 @@ class GeminiClient:
         logger.debug("Gemini chat request model=%s", self._model_name)
         return await self._with_retry("chat", _call)
 
+    async def generate_chat_stream(
+        self,
+        *,
+        system_instruction: str,
+        history: List[dict[str, str]],
+        user_message: str,
+    ) -> AsyncGenerator[str, None]:
+        """Stream a chat completion as text deltas."""
+        self._ensure_configured()
+        gemini_history = _to_gemini_history(history)
+        model = genai.GenerativeModel(
+            model_name=self._model_name,
+            system_instruction=system_instruction,
+            generation_config=genai.GenerationConfig(temperature=self._temperature),
+        )
+        chat = model.start_chat(history=gemini_history)
+
+        def _start_stream():
+            return chat.send_message(user_message, stream=True)
+
+        try:
+            stream = await asyncio.to_thread(_start_stream)
+            iterator = iter(stream)
+            while True:
+                chunk = await asyncio.to_thread(_next_chunk, iterator)
+                if chunk is None:
+                    break
+                text = getattr(chunk, "text", None)
+                if text:
+                    yield text
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Gemini streaming chat failed")
+            raise GeminiServiceError(
+                "Gemini streaming chat failed",
+                details={"error": str(exc), "error_type": type(exc).__name__},
+            ) from exc
+
     async def embed_texts(self, texts: List[str]) -> List[List[float]]:
         if not texts:
             return []
@@ -149,6 +185,13 @@ def _normalize_embedding_result(
     if embedding and isinstance(embedding[0], list):
         return embedding  # type: ignore[return-value]
     return [embedding]  # type: ignore[list-item]
+
+
+def _next_chunk(iterator):
+    try:
+        return next(iterator)
+    except StopIteration:
+        return None
 
 
 def _to_gemini_history(messages: List[dict[str, str]]) -> List[dict[str, Any]]:

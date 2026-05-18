@@ -44,12 +44,12 @@ export function MarketingNavbar() {
       className={cn(
         "sticky top-0 z-50 transition-all duration-500",
         scrolled
-          ? "border-b border-border/50 bg-background/60 shadow-lg shadow-black/10 backdrop-blur-2xl"
-          : "border-b border-transparent bg-background/40 backdrop-blur-md"
+          ? "border-b border-border/50 bg-background/70 shadow-lg shadow-black/10 backdrop-blur-2xl"
+          : "border-b border-transparent bg-background/35 backdrop-blur-md"
       )}
     >
       <motion.div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background/80 to-transparent opacity-0 transition-opacity duration-500"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/10 via-background/75 to-transparent opacity-0 transition-opacity duration-500"
         animate={{ opacity: scrolled ? 1 : 0 }}
       />
 

@@ -8,13 +8,17 @@ from app.core.security import decode_access_token
 from app.db.mongodb import get_database
 from app.services.gemini_service import GeminiService
 from app.models.user import UserInDB
-from app.repositories.chat_repository import ChatMessageRepository, ChatSessionRepository
-from app.repositories.document_repository import DocumentChunkRepository, DocumentRepository
-from app.repositories.refresh_token_repository import RefreshTokenRepository
-from app.repositories.user_repository import UserRepository
+from app.db.repositories.access_token_repo import AccessTokenDenylistRepository
+from app.db.repositories.chat_repo import ChatMessageRepository, ChatSessionRepository
+from app.db.repositories.document_repo import DocumentChunkRepository, DocumentRepository
+from app.db.repositories.pending_signup_repo import PendingSignupRepository
+from app.db.repositories.refresh_token_repo import RefreshTokenRepository
+from app.db.repositories.user_repo import UserRepository
 from app.services.auth_service import AuthService
 from app.services.chat_service import ChatService
 from app.services.document_service import DocumentService
+from app.services.email_service import EmailService
+from app.services.storage_service import StorageService
 from app.services.rag.embeddings import EmbeddingService
 from app.services.rag.orchestrator import RAGOrchestrator
 from app.services.rag.retriever import RAGRetriever
@@ -25,6 +29,8 @@ from app.services.user_service import UserService
 _vector_store = VectorStore()
 _embedding_service = EmbeddingService()
 _gemini_service = GeminiService()
+_storage_service = StorageService()
+_email_service = EmailService()
 
 
 async def get_db() -> AsyncGenerator[AsyncIOMotorDatabase, None]:
@@ -40,6 +46,18 @@ def get_refresh_repo(
     db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
 ) -> RefreshTokenRepository:
     return RefreshTokenRepository(db)
+
+
+def get_pending_signup_repo(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+) -> PendingSignupRepository:
+    return PendingSignupRepository(db)
+
+
+def get_access_token_repo(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+) -> AccessTokenDenylistRepository:
+    return AccessTokenDenylistRepository(db)
 
 
 def get_document_repo(
@@ -69,9 +87,19 @@ def get_message_repo(
 # ─── Services ──────────────────────────────────────────────────
 def get_auth_service(
     user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+    pending_signup_repo: Annotated[
+        PendingSignupRepository, Depends(get_pending_signup_repo)
+    ],
     refresh_repo: Annotated[RefreshTokenRepository, Depends(get_refresh_repo)],
+    access_repo: Annotated[AccessTokenDenylistRepository, Depends(get_access_token_repo)],
 ) -> AuthService:
-    return AuthService(user_repo, refresh_repo)
+    return AuthService(
+        user_repo,
+        pending_signup_repo,
+        refresh_repo,
+        access_repo,
+        _email_service,
+    )
 
 
 def get_user_service(
@@ -85,7 +113,11 @@ def get_document_service(
     chunk_repo: Annotated[DocumentChunkRepository, Depends(get_chunk_repo)],
 ) -> DocumentService:
     return DocumentService(
-        document_repo, chunk_repo, _vector_store, _embedding_service
+        document_repo,
+        chunk_repo,
+        _vector_store,
+        _embedding_service,
+        _storage_service,
     )
 
 
@@ -107,6 +139,7 @@ def get_chat_service(
 async def get_current_user(
     authorization: Annotated[str | None, Header()] = None,
     user_repo: UserRepository = Depends(get_user_repo),
+    access_repo: AccessTokenDenylistRepository = Depends(get_access_token_repo),
 ) -> UserInDB:
     if not authorization or not authorization.startswith("Bearer "):
         raise UnauthorizedError("Missing bearer token")
@@ -116,9 +149,14 @@ async def get_current_user(
     except ValueError as exc:
         raise UnauthorizedError("Invalid access token") from exc
 
+    if payload.get("jti") and await access_repo.exists(str(payload["jti"])):
+        raise UnauthorizedError("Session has been logged out")
+
     user = await user_repo.find_by_id(str(payload["sub"]))
     if not user or not user.is_active:
         raise UnauthorizedError("User not found or inactive")
+    if int(payload.get("sv", 0)) != getattr(user, "session_version", 0):
+        raise UnauthorizedError("Session has expired")
     return user
 
 

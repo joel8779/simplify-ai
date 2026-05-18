@@ -5,6 +5,7 @@ import { FileText, Trash2, Clock, CheckCircle, AlertCircle } from "lucide-react"
 import { DashboardPageShell } from "@/components/layout/DashboardPageShell";
 import { DocumentUploader } from "@/components/documents/DocumentUploader";
 import { documentService, type DocumentMetadata } from "@/lib/services/document.service";
+import { notifyDocumentsChanged } from "@/lib/document-events";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,6 +21,8 @@ export default function DocumentsPage() {
   const loadDocuments = async () => {
     try {
       const response = await documentService.listDocuments();
+      console.log("Documents response:", response);
+      console.log("Documents items:", response.items);
       setDocuments(response.items);
     } catch (error) {
       console.error("Failed to load documents:", error);
@@ -31,6 +34,7 @@ export default function DocumentsPage() {
   const handleDelete = async (documentId: string) => {
     try {
       await documentService.deleteDocument(documentId);
+      notifyDocumentsChanged();
       await loadDocuments();
     } catch (error) {
       console.error("Failed to delete document:", error);

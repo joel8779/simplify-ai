@@ -50,10 +50,11 @@ class RAGRetriever:
 
         settings = get_settings()
         logger.info(
-            "Retrieving top_k=%s for user=%s across %s documents",
+            "Retrieving top_k=%s for user=%s across %s documents document_ids=%s",
             settings.rag_top_k,
             user_id,
             len(document_ids),
+            document_ids,
         )
 
         query_vector = await self._embeddings.embed_query(query)
@@ -80,14 +81,18 @@ class RAGRetriever:
         docs = results.get("documents") or [[]]
         metas = results.get("metadatas") or [[]]
         distances = results.get("distances") or [[]]
+        scores = results.get("scores") or [[]]
         ids = results.get("ids") or [[]]
 
         doc_list = docs[0] if docs else []
         meta_list = metas[0] if metas else []
         dist_list = distances[0] if distances else []
+        score_list = scores[0] if scores else []
         id_list = ids[0] if ids else []
 
-        for doc_text, meta, dist, chroma_id in zip(doc_list, meta_list, dist_list, id_list):
+        for idx, (doc_text, meta, vector_id) in enumerate(
+            zip(doc_list, meta_list, id_list)
+        ):
             if not meta:
                 continue
 
@@ -96,13 +101,20 @@ class RAGRetriever:
                 logger.debug("Skipping chunk outside allowed scope: %s", document_id)
                 continue
 
-            score = max(0.0, 1.0 - float(dist))
+            if score_list:
+                score = max(0.0, float(score_list[idx]))
+            else:
+                dist = dist_list[idx] if idx < len(dist_list) else 1.0
+                score = max(0.0, 1.0 - float(dist))
             if score < min_score:
                 continue
 
             chunk_index = int(meta.get("chunk_index", 0))
             page_raw = meta.get("page_number")
             page_number = int(page_raw) if page_raw is not None else None
+            original_name = str(
+                meta.get("original_name") or meta.get("filename") or ""
+            )
 
             chunks.append(
                 RetrievedChunk(
@@ -111,8 +123,8 @@ class RAGRetriever:
                     content=doc_text or "",
                     score=round(score, 4),
                     page_number=page_number,
-                    original_name=str(meta.get("original_name", "")),
-                    chroma_id=chroma_id,
+                    original_name=original_name,
+                    chroma_id=vector_id,
                 )
             )
 

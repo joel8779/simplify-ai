@@ -18,12 +18,19 @@ export interface AuthResponse {
   token_type: string;
 }
 
+export interface SignupResponse {
+  email: string;
+  verification_required: boolean;
+  expires_in_seconds: number;
+  resend_after_seconds: number;
+}
+
 export const authService = {
-  async signup(credentials: SignupCredentials): Promise<void> {
-    const response = await api.post<AuthResponse>('/api/v1/auth/signup', credentials);
-    authUtils.setTokens({
-      access_token: response.access_token,
-      refresh_token: response.refresh_token,
+  async signup(credentials: SignupCredentials): Promise<SignupResponse> {
+    return api.post<SignupResponse>('/api/v1/auth/signup', {
+      full_name: credentials.name,
+      email: credentials.email,
+      password: credentials.password,
     });
   },
 
@@ -35,16 +42,29 @@ export const authService = {
     });
   },
 
-  async logout(): Promise<void> {
+  async logout(options: { allDevices?: boolean } = {}): Promise<void> {
     const refreshToken = authUtils.getRefreshToken();
-    if (refreshToken) {
-      try {
-        await api.post('/api/v1/auth/logout', { refresh_token: refreshToken });
-      } catch (error) {
-        console.error('Logout error:', error);
-      }
+    try {
+      await api.post('/api/v1/auth/logout', {
+        refresh_token: refreshToken,
+        all_devices: options.allDevices === true,
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
     }
-    authUtils.clearTokens();
+    authUtils.clearSessionState();
+  },
+
+  async verifyOtp(credentials: { email: string; otp: string }): Promise<void> {
+    const response = await api.post<AuthResponse>('/api/v1/auth/verify-otp', credentials);
+    authUtils.setTokens({
+      access_token: response.access_token,
+      refresh_token: response.refresh_token,
+    });
+  },
+
+  async resendOtp(email: string): Promise<SignupResponse> {
+    return api.post<SignupResponse>('/api/v1/auth/resend-otp', { email });
   },
 
   async refreshToken(): Promise<void> {

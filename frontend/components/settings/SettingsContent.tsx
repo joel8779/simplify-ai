@@ -1,18 +1,16 @@
 "use client";
 
 import { AppearanceSettings } from "@/components/settings/AppearanceSettings";
-import { NotificationSettings } from "@/components/settings/NotificationSettings";
-import { ConnectedDocumentsSettings } from "@/components/settings/ConnectedDocumentsSettings";
 import { AccountSettings } from "@/components/settings/AccountSettings";
+import { SecuritySettings } from "@/components/settings/SecuritySettings";
 import { DangerZoneSettings } from "@/components/settings/DangerZoneSettings";
 
 export function SettingsContent() {
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-3xl space-y-5">
       <AccountSettings />
+      <SecuritySettings />
       <AppearanceSettings />
-      <NotificationSettings />
-      <ConnectedDocumentsSettings />
       <DangerZoneSettings />
     </div>
   );

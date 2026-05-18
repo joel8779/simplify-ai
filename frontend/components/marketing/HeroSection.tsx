@@ -13,9 +13,9 @@ export function HeroSection() {
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
       >
-        <div className="absolute left-1/2 top-0 h-[480px] w-[720px] -translate-x-1/2 rounded-full bg-blue-500/10 blur-[100px]" />
-        <div className="absolute right-0 top-1/3 h-64 w-64 rounded-full bg-violet-600/15 blur-[80px]" />
-        <div className="absolute bottom-0 left-0 h-48 w-48 rounded-full bg-purple-500/10 blur-[60px]" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/45 to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.14),transparent_42%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,hsl(var(--background)/0),hsl(var(--background))_88%)]" />
       </motion.div>
 
       <div className="mx-auto max-w-4xl text-center">
@@ -23,7 +23,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-4 inline-flex items-center rounded-full border border-border/60 bg-card/50 px-4 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur-sm"
+          className="mb-4 inline-flex items-center rounded-full border border-border/60 bg-card/55 px-4 py-1.5 text-xs font-medium text-muted-foreground shadow-lg shadow-black/10 backdrop-blur-sm"
         >
           {BRAND_TAGLINE}
         </motion.p>
@@ -42,7 +42,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.16 }}
-          className="mx-auto mt-6 max-w-2xl text-base text-muted-foreground sm:text-lg"
+          className="mx-auto mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8"
         >
           {BRAND_DESCRIPTION}
         </motion.p>

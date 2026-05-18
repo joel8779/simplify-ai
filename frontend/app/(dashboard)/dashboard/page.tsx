@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -18,12 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ROUTES } from "@/lib/constants/navigation";
-
-const STATS = [
-  { label: "Active chats", value: "12", icon: MessageSquare },
-  { label: "Documents", value: "48", icon: FileText },
-  { label: "Queries this week", value: "324", icon: MessageSquarePlus },
-] as const;
+import { chatService, type ChatStatsResponse } from "@/lib/services/chat.service";
 
 const QUICK_ACTIONS = [
   {
@@ -41,6 +37,50 @@ const QUICK_ACTIONS = [
 ] as const;
 
 export default function DashboardOverviewPage() {
+  const [stats, setStats] = useState<ChatStatsResponse | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadStats() {
+      try {
+        const response = await chatService.getStats();
+        if (!cancelled) {
+          setStats(response);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setStatsError(
+            error instanceof Error ? error.message : "Failed to load stats"
+          );
+        }
+      }
+    }
+
+    void loadStats();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const statCards = [
+    {
+      label: "Active chats",
+      value: stats ? String(stats.total_chats) : statsError ? "--" : "...",
+      icon: MessageSquare,
+    },
+    {
+      label: "Documents",
+      value: stats ? String(stats.total_documents) : statsError ? "--" : "...",
+      icon: FileText,
+    },
+    {
+      label: "Total messages",
+      value: stats ? String(stats.total_messages) : statsError ? "--" : "...",
+      icon: MessageSquarePlus,
+    },
+  ] as const;
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-8">
       <div className="mx-auto max-w-4xl">
@@ -63,7 +103,7 @@ export default function DashboardOverviewPage() {
           transition={{ duration: 0.45, delay: 0.08 }}
           className="mt-8 grid gap-4 sm:grid-cols-3"
         >
-          {STATS.map((stat) => (
+          {statCards.map((stat) => (
             <Card
               key={stat.label}
               className="border-border/50 bg-card/50 backdrop-blur-sm"

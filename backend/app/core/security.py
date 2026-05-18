@@ -31,6 +31,7 @@ def create_access_token(
         "sub": subject,
         "exp": expire,
         "type": "access",
+        "jti": str(uuid4()),
     }
     if extra_claims:
         payload.update(extra_claims)

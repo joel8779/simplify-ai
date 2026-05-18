@@ -28,6 +28,7 @@ class ChatMessageInDB(MongoModel):
     content: str
     document_ids: List[str] = Field(default_factory=list)
     citations: List[dict] = Field(default_factory=list)
+    response_mode: Optional[str] = None
     created_at: datetime = Field(default_factory=utc_now)
 
 

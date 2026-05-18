@@ -1,19 +1,65 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SettingsSection } from "@/components/settings/SettingsSection";
+import { userService } from "@/lib/services/user.service";
 
 export function AccountSettings() {
-  const [name, setName] = useState("Alex Morgan");
-  const [email, setEmail] = useState("alex@company.com");
-  const [saved, setSaved] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProfile() {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const profile = await userService.getMe();
+        if (cancelled) return;
+        setName(profile.full_name ?? "");
+        setEmail(profile.email);
+      } catch (error) {
+        if (!cancelled) {
+          setError(error instanceof Error ? error.message : "Failed to load profile");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setStatus(null);
+    setError(null);
+    try {
+      const profile = await userService.updateMe({
+        full_name: name.trim() || null,
+        email: email.trim(),
+      });
+      setName(profile.full_name ?? "");
+      setEmail(profile.email);
+      setStatus("Profile saved");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to save profile");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -23,6 +69,10 @@ export function AccountSettings() {
       delay={0}
     >
       <div className="space-y-4">
+        {isLoading && (
+          <p className="text-sm text-muted-foreground">Loading profile...</p>
+        )}
+
         <div className="space-y-2">
           <Label htmlFor="settings-name">Display name</Label>
           <Input
@@ -30,6 +80,7 @@ export function AccountSettings() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Your name"
+            disabled={isLoading || isSaving}
           />
         </div>
 
@@ -41,29 +92,25 @@ export function AccountSettings() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@company.com"
+            disabled={isLoading || isSaving}
           />
           <p className="text-xs text-muted-foreground">
-            Used for sign-in and notification delivery.
+            Used for sign-in.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 pt-1">
-          <Button onClick={handleSave}>Save changes</Button>
-          {saved && (
+          <Button onClick={handleSave} disabled={isLoading || isSaving}>
+            {isSaving ? "Saving..." : "Save changes"}
+          </Button>
+          {status && (
             <span className="text-sm text-emerald-400 animate-fade-in">
-              Changes saved
+              {status}
             </span>
           )}
-        </div>
-
-        <div className="border-t border-border/40 pt-4">
-          <p className="text-sm font-medium">Password</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Last changed 3 months ago.
-          </p>
-          <Button variant="outline" size="sm" className="mt-3">
-            Change password
-          </Button>
+          {error && (
+            <span className="text-sm text-red-400 animate-fade-in">{error}</span>
+          )}
         </div>
       </div>
     </SettingsSection>

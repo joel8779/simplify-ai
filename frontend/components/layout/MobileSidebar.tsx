@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Logo } from "@/components/brand/Logo";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { NavItem } from "@/components/layout/NavItem";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { ChatSessionList } from "@/components/chat/ChatSessionList";
@@ -38,13 +39,16 @@ export function MobileSidebar() {
         </div>
 
         <div className="mt-auto flex items-center justify-between border-t border-sidebar-border p-4">
-          <Link
-            href={ROUTES.settings}
-            className="text-sm text-muted-foreground hover:text-foreground"
-            onClick={() => setSidebarOpen(false)}
-          >
-            Settings
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={ROUTES.settings}
+              className="text-sm text-muted-foreground hover:text-foreground"
+              onClick={() => setSidebarOpen(false)}
+            >
+              Settings
+            </Link>
+            <LogoutButton onLoggedOut={() => setSidebarOpen(false)} />
+          </div>
           <ThemeToggle />
         </div>
       </SheetContent>

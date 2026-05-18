@@ -37,24 +37,54 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
 
+    otp_expire_minutes: int = 10
+    otp_resend_cooldown_seconds: int = 60
+    otp_rate_limit_window_minutes: int = 15
+    otp_max_requests_per_window: int = 3
+
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = "no-reply@simplify.ai"
+    smtp_from_name: str = "Simplify AI"
+    smtp_use_tls: bool = True
+
     gemini_api_key: str = ""
-    gemini_chat_model: str = "gemini-2.0-flash"
-    gemini_embedding_model: str = "models/text-embedding-004"
+    gemini_chat_model: str = "models/gemini-2.5-flash"
+    gemini_embedding_model: str = "models/gemini-embedding-001"
     gemini_temperature: float = 0.2
     gemini_max_retries: int = 3
     gemini_retry_base_delay_seconds: float = 1.0
 
     chroma_persist_dir: str = "./data/chroma"
+    vector_store_provider: str = "chroma"
+    pinecone_api_key: str = ""
+    pinecone_index_name: str = ""
+    pinecone_index_host: str = ""
+    pinecone_namespace: str = "simplify"
+    pinecone_dimension: int = 3072
+    pinecone_metric: str = "cosine"
+    pinecone_upsert_batch_size: int = 100
     rag_chunk_size: int = 800
     rag_chunk_overlap: int = 120
     rag_top_k: int = 6
     rag_min_relevance_score: float = 0.0
+    rag_fallback_relevance_threshold: float = 0.35
     embedding_batch_size: int = 32
     chat_history_limit: int = 20
+    max_chats_per_user: int = 50
+    max_messages_per_chat: int = 100
+    max_documents_per_chat: int = 8
 
     upload_dir: str = "./data/uploads"
     max_upload_size_mb: int = 25
     allowed_extensions: str = ".pdf,.docx,.txt,.md"
+
+    supabase_url: str = ""
+    supabase_service_key: str = ""
+    supabase_bucket: str = "documents"
+    supabase_signed_url_expiry_seconds: int = 3600
 
     @field_validator("mongodb_uri")
     @classmethod
@@ -76,6 +106,60 @@ class Settings(BaseSettings):
         if isinstance(value, list):
             return ",".join(value)
         return value
+
+    @field_validator("debug", mode="before")
+    @classmethod
+    def parse_debug_flag(cls, value: bool | str) -> bool | str:
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"release", "prod", "production"}:
+                return False
+            if normalized in {"debug", "dev", "development"}:
+                return True
+        return value
+
+    @field_validator("gemini_embedding_model")
+    @classmethod
+    def normalize_gemini_embedding_model(cls, value: str) -> str:
+        legacy_models = {
+            "embedding-001",
+            "models/embedding-001",
+            "text-embedding-004",
+            "models/text-embedding-004",
+        }
+        if value in legacy_models:
+            return "models/gemini-embedding-001"
+        return value
+
+    @field_validator("gemini_chat_model")
+    @classmethod
+    def normalize_gemini_chat_model(cls, value: str) -> str:
+        legacy_models = {"gemini-2.0-flash", "models/gemini-2.0-flash"}
+        if value in legacy_models:
+            return "models/gemini-2.5-flash"
+        if value.startswith("gemini-"):
+            return f"models/{value}"
+        return value
+
+    @field_validator("vector_store_provider")
+    @classmethod
+    def validate_vector_store_provider(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        allowed = {"chroma", "pinecone", "pinecone_with_chroma_fallback"}
+        if normalized not in allowed:
+            raise ValueError(
+                "VECTOR_STORE_PROVIDER must be one of: chroma, pinecone, "
+                "pinecone_with_chroma_fallback"
+            )
+        return normalized
+
+    @field_validator("pinecone_metric")
+    @classmethod
+    def validate_pinecone_metric(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized != "cosine":
+            raise ValueError("PINECONE_METRIC must be cosine for Gemini embeddings")
+        return normalized
 
     @property
     def cors_origin_list(self) -> List[str]:

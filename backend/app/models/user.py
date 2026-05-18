@@ -11,5 +11,8 @@ class UserInDB(MongoModel):
     hashed_password: str
     full_name: Optional[str] = None
     is_active: bool = True
+    email_verified: bool = True
+    email_verified_at: Optional[datetime] = None
+    session_version: int = 0
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)

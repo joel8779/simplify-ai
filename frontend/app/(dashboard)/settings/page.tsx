@@ -5,7 +5,7 @@ export default function SettingsPage() {
   return (
     <DashboardPageShell
       title="Settings"
-      description="Manage your account, preferences, and connected documents."
+      description="Manage your profile, password, theme, and chat history."
     >
       <SettingsContent />
     </DashboardPageShell>

@@ -14,6 +14,7 @@ class UserPublic(BaseModel):
 
 class UserUpdateRequest(BaseModel):
     full_name: Optional[str] = Field(default=None, max_length=120)
+    email: Optional[EmailStr] = None
 
 
 class PasswordChangeRequest(BaseModel):

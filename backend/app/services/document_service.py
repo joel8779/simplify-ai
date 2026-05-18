@@ -1,5 +1,6 @@
 import uuid
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import List
 
 from fastapi import UploadFile
@@ -13,12 +14,13 @@ from app.core.exceptions import (
 )
 from app.core.logging import get_logger
 from app.models.document import DocumentInDB, DocumentStatus
-from app.repositories.document_repository import DocumentChunkRepository, DocumentRepository
+from app.db.repositories.document_repo import DocumentChunkRepository, DocumentRepository
 from app.schemas.document import DocumentResponse, DocumentUploadResponse
-from app.services.rag.chunking import split_text
+from app.services.rag.chunking import split_pages
 from app.services.rag.embeddings import EmbeddingService
 from app.services.rag.vector_store import VectorStore
-from app.utils.file_parsers import extract_text_from_file
+from app.services.storage_service import StorageService
+from app.utils.file_parsers import parse_file
 
 logger = get_logger(__name__)
 
@@ -30,11 +32,13 @@ class DocumentService:
         chunk_repo: DocumentChunkRepository,
         vector_store: VectorStore,
         embedding_service: EmbeddingService,
+        storage_service: StorageService,
     ) -> None:
         self._documents = document_repo
         self._chunks = chunk_repo
         self._vector_store = vector_store
         self._embeddings = embedding_service
+        self._storage = storage_service
 
     async def list_documents(self, user_id: str) -> List[DocumentResponse]:
         docs = await self._documents.list_by_user(user_id)
@@ -92,11 +96,8 @@ class DocumentService:
 
         await self._vector_store.delete_by_document(user_id, document_id)
         await self._chunks.delete_by_document(document_id, user_id)
+        await self._storage.delete_file(doc.storage_path)
         await self._documents.delete(document_id, user_id)
-
-        storage = Path(doc.storage_path)
-        if storage.exists():
-            storage.unlink()
         logger.info("Deleted document id=%s user=%s", document_id, user_id)
 
     async def _process_upload(
@@ -106,36 +107,49 @@ class DocumentService:
         if not file.filename:
             raise ValidationAppError("Filename is required")
 
-        ext = Path(file.filename).suffix.lower()
-        if ext not in settings.allowed_extension_set:
-            raise ValidationAppError(f"File type {ext} is not allowed")
-
         content = await file.read()
-        if len(content) > settings.max_upload_bytes:
-            raise ValidationAppError("File exceeds maximum upload size")
+        ext = self._storage.validate_upload(file.filename, len(content))
+        mime_type = file.content_type or "application/octet-stream"
 
         stored_name = f"{uuid.uuid4()}{ext}"
-        storage_path = upload_root / stored_name
-        storage_path.write_bytes(content)
+        stored_file = await self._storage.upload_file(
+            user_id=user_id,
+            original_name=file.filename,
+            content=content,
+            content_type=mime_type,
+        )
 
         document = DocumentInDB(
             user_id=user_id,
             filename=stored_name,
             original_name=file.filename,
-            mime_type=file.content_type or "application/octet-stream",
+            mime_type=mime_type,
             size_bytes=len(content),
             status=DocumentStatus.PROCESSING,
-            storage_path=str(storage_path),
+            storage_provider=stored_file.provider,
+            storage_path=stored_file.path,
+            file_url=stored_file.url,
         )
-        document = await self._documents.create(document)
+        try:
+            document = await self._documents.create(document)
+        except Exception:
+            await self._storage.delete_file(stored_file.path)
+            raise
         doc_id = str(document.id)
 
         logger.info(
             "Processing upload id=%s name=%s user=%s", doc_id, file.filename, user_id
         )
 
+        temp_path: Path | None = None
         try:
-            chunk_count = await self._index_document(user_id, document, storage_path)
+            with NamedTemporaryFile(
+                delete=False, suffix=ext, dir=upload_root
+            ) as tmp:
+                tmp.write(content)
+                temp_path = Path(tmp.name)
+
+            chunk_count = await self._index_document(user_id, document, temp_path)
             updated = await self._documents.update(
                 doc_id,
                 user_id,
@@ -145,7 +159,15 @@ class DocumentService:
                     "error_message": None,
                 },
             )
-        except (GeminiServiceError, ValidationAppError):
+        except (GeminiServiceError, ValidationAppError) as exc:
+            await self._documents.update(
+                doc_id,
+                user_id,
+                {
+                    "status": DocumentStatus.FAILED.value,
+                    "error_message": exc.message[:500],
+                },
+            )
             raise
         except Exception as exc:  # noqa: BLE001
             await self._documents.update(
@@ -158,6 +180,9 @@ class DocumentService:
                 f"Failed to index document: {exc}",
                 details={"document_id": doc_id},
             ) from exc
+        finally:
+            if temp_path and temp_path.exists():
+                temp_path.unlink()
 
         if not updated:
             raise NotFoundError("Document")
@@ -166,73 +191,77 @@ class DocumentService:
     async def _index_document(
         self, user_id: str, document: DocumentInDB, path: Path
     ) -> int:
-        # Extract text from PDF
-        text = extract_text_from_file(path, document.mime_type)
-        if not text:
-            raise ValueError("No text extracted from file")
+        parsed = parse_file(path, document.mime_type)
+        if not parsed.text.strip():
+            raise ValidationAppError("No text could be extracted from this file")
 
-        # Chunk the text
-        chunks = split_text(text)
-        logger.info(f"Chunked document_id={document.id} into {len(chunks)} chunks")
+        chunks = split_pages(parsed.pages)
+        if not chunks:
+            raise ValidationAppError("No indexable text chunks were produced")
 
-        # Generate embeddings (optional - if fails, still store document)
+        doc_id = str(document.id)
+        logger.info("Chunked document_id=%s into %s chunks", doc_id, len(chunks))
+
+        texts = [chunk.content for chunk in chunks]
+        vectors = await self._embeddings.embed_documents(texts)
+        if len(vectors) != len(chunks):
+            raise GeminiServiceError(
+                "Embedding count mismatch",
+                details={"expected": len(chunks), "received": len(vectors)},
+            )
+
+        chroma_ids = [f"{doc_id}_chunk_{chunk.chunk_index}" for chunk in chunks]
+        metadatas = []
+        for chunk in chunks:
+            metadata = {
+                "user_id": user_id,
+                "document_id": doc_id,
+                "chunk_index": chunk.chunk_index,
+                "original_name": document.original_name,
+                "filename": document.filename,
+                "mime_type": document.mime_type,
+            }
+            if chunk.page_number is not None:
+                metadata["page_number"] = chunk.page_number
+            metadatas.append(metadata)
+
+        vectors_inserted = False
         try:
-            vectors = await self._embeddings.embed_documents(chunks)
-            
-            # Store chunks in ChromaDB
-            for i, (chunk, vector) in enumerate(zip(chunks, vectors)):
-                chunk_id = f"{document.id}_chunk_{i}"
-                chunk_metadata = {
-                    "document_id": document.id,
-                    "chunk_index": i,
-                    "text": chunk,
-                }
-                await self._vector_store.upsert_chunks(
-                    user_id,
-                    ids=[chunk_id],
-                    embeddings=[vector],
-                    documents=[chunk],
-                    metadatas=[chunk_metadata],
-                )
+            await self._vector_store.upsert_chunks(
+                user_id,
+                ids=chroma_ids,
+                embeddings=vectors,
+                documents=texts,
+                metadatas=metadatas,
+            )
+            vectors_inserted = True
 
-            # Store chunks in MongoDB
             await self._chunks.insert_many(
                 [
                     {
                         "user_id": user_id,
-                        "document_id": document.id,
-                        "chunk_index": i,
-                        "content": chunk,
-                        "chroma_id": f"{document.id}_chunk_{i}",
-                        "embedding": vector,
+                        "document_id": doc_id,
+                        "chunk_index": chunk.chunk_index,
+                        "content": chunk.content,
+                        "chroma_id": chroma_id,
+                        "page_number": chunk.page_number,
                     }
-                    for i, (chunk, vector) in enumerate(zip(chunks, vectors))
+                    for chunk, chroma_id in zip(chunks, chroma_ids)
                 ]
             )
+        except Exception:
+            if vectors_inserted:
+                try:
+                    await self._vector_store.delete_by_document(user_id, doc_id)
+                except Exception:  # noqa: BLE001
+                    logger.exception(
+                        "Rollback vector cleanup failed document_id=%s user=%s",
+                        doc_id,
+                        user_id,
+                    )
+            raise
 
-            # Update document status
-            await self._documents.update(
-                document.id,
-                user_id,
-                {
-                    "chunk_count": len(chunks),
-                    "status": DocumentStatus.INDEXED.value,
-                }
-            )
-        except Exception as e:
-            logger.warning(f"Embedding failed for document_id={document.id}, storing without embeddings: {e}")
-            # Store document without embeddings
-            await self._documents.update(
-                document.id,
-                user_id,
-                {
-                    "chunk_count": len(chunks),
-                    "status": DocumentStatus.INDEXED.value,
-                    "error_message": f"Embedding failed: {str(e)}",
-                }
-            )
-
-        logger.info("Indexed document_id=%s vectors=%s", document.id, len(chunks))
+        logger.info("Indexed document_id=%s vectors=%s", doc_id, len(chunks))
         return len(chunks)
 
     @staticmethod
@@ -246,6 +275,9 @@ class DocumentService:
             status=doc.status,
             chunk_count=doc.chunk_count,
             error_message=doc.error_message,
+            storage_provider=doc.storage_provider,
+            storage_path=doc.storage_path,
+            file_url=doc.file_url,
             created_at=doc.created_at,
             updated_at=doc.updated_at,
         )

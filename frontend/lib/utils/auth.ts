@@ -35,6 +35,13 @@ export const authUtils = {
     }
   },
 
+  clearSessionState() {
+    if (typeof window !== 'undefined') {
+      localStorage.clear();
+      sessionStorage.clear();
+    }
+  },
+
   isAuthenticated(): boolean {
     return !!this.getAccessToken();
   },

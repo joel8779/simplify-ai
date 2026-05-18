@@ -1,16 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { AuthHeader } from "@/components/auth/AuthHeader";
-import { AuthDivider } from "@/components/auth/AuthDivider";
 import { FormField } from "@/components/auth/FormField";
 import { PasswordInput } from "@/components/auth/PasswordInput";
-import { SocialAuthButtons } from "@/components/auth/SocialAuthButtons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,12 +30,22 @@ const fieldVariants = {
 export function LoginForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<keyof LoginFormValues, string>>>({});
   const [form, setForm] = useState<LoginFormValues>({
     email: "",
     password: "",
     remember: false,
   });
+
+  useEffect(() => {
+    const message = sessionStorage.getItem("simplify_logout_success");
+    if (!message) return;
+    sessionStorage.removeItem("simplify_logout_success");
+    setNotice(message);
+    const timer = window.setTimeout(() => setNotice(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const handleChange = (field: keyof LoginFormValues, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -80,6 +88,12 @@ export function LoginForm() {
 
   return (
     <AuthCard>
+      {notice && (
+        <div className="mb-4 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+          {notice}
+        </div>
+      )}
+
       <AuthHeader
         title="Welcome back"
         subtitle="Sign in to continue to your AI workspace"
@@ -172,11 +186,8 @@ export function LoginForm() {
         </motion.div>
       </form>
 
-      <AuthDivider />
-      <SocialAuthButtons disabled={isLoading} />
-
       <motion.p
-        className="mt-8 text-center text-sm text-muted-foreground"
+        className="mt-6 text-center text-sm text-muted-foreground"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.45 }}

@@ -7,9 +7,15 @@ async def ensure_indexes() -> None:
 
     await db.users.create_index("email", unique=True)
 
+    await db.pending_signups.create_index("email", unique=True)
+    await db.pending_signups.create_index("otp_expires_at", expireAfterSeconds=0)
+
     await db.refresh_tokens.create_index("token_hash", unique=True)
     await db.refresh_tokens.create_index("user_id")
     await db.refresh_tokens.create_index("expires_at", expireAfterSeconds=0)
+
+    await db.access_token_denylist.create_index("jti", unique=True)
+    await db.access_token_denylist.create_index("expires_at", expireAfterSeconds=0)
 
     await db.documents.create_index([("user_id", 1), ("created_at", -1)])
     await db.documents.create_index([("user_id", 1), ("status", 1)])

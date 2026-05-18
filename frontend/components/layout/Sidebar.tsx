@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/Logo";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { NavItem } from "@/components/layout/NavItem";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { ChatSessionList } from "@/components/chat/ChatSessionList";
@@ -85,6 +86,7 @@ export function Sidebar() {
           </Button>
         )}
         <ThemeToggle />
+        <LogoutButton collapsed={sidebarCollapsed} />
       </div>
     </aside>
   );

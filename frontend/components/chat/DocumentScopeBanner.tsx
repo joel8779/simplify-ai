@@ -27,7 +27,7 @@ export function DocumentScopeBanner({
       >
         <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-400" />
         <span>
-          No documents attached — attach files to scope answers to your library.
+          No documents attached - attach files to scope answers to your library.
         </span>
       </div>
     );
@@ -48,7 +48,7 @@ export function DocumentScopeBanner({
         <span className="font-medium text-foreground">
           {count} document{count !== 1 ? "s" : ""} in scope
         </span>
-        {" — "}
+        {" - "}
         AI responses use only:{" "}
         <span className="text-foreground/80">{names}</span>
       </span>

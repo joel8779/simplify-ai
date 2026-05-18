@@ -20,6 +20,9 @@ class DocumentResponse(BaseModel):
     status: ProcessingStatus
     chunk_count: int
     error_message: Optional[str] = None
+    storage_provider: str = "supabase"
+    storage_path: Optional[str] = None
+    file_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -41,4 +44,7 @@ class DocumentMetadata(BaseModel):
     size_bytes: int
     status: ProcessingStatus
     chunk_count: int
+    storage_provider: str = "supabase"
+    storage_path: Optional[str] = None
+    file_url: Optional[str] = None
     created_at: datetime

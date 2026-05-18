@@ -22,7 +22,9 @@ class DocumentInDB(MongoModel):
     status: DocumentStatus = DocumentStatus.PROCESSING
     error_message: Optional[str] = None
     chunk_count: int = 0
+    storage_provider: str = "supabase"
     storage_path: str
+    file_url: Optional[str] = None
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
