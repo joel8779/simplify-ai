@@ -1,32 +1,32 @@
-# Simplify Backend API
+# Simplify API
 
-Production-style FastAPI backend for document-scoped RAG chat.
+FastAPI backend for Simplify AI: JWT auth, OTP verification, document ingestion, Supabase Storage, Pinecone retrieval, Gemini RAG orchestration, streaming chat, citations, and persistent chat history.
 
-## Quick start
+## Local Development
 
 ```bash
 cd backend
 python -m venv .venv
-# Windows
 .venv\Scripts\activate
-# macOS/Linux
-source .venv/bin/activate
-
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env with MongoDB Atlas URI, JWT secret, Gemini key
-
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-- API docs: http://localhost:8000/docs
-- Health: http://localhost:8000/api/v1/health
+Health check:
 
-## Development order
+```bash
+curl http://127.0.0.1:8000/api/v1/health
+```
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for full system design.
+## Production
 
-1. **Phase 1 (scaffold — current)** — structure, auth, MongoDB, route stubs
-2. **Phase 2** — Gemini embeddings + chat, document indexing end-to-end
-3. **Phase 3** — SSE streaming for chat responses
-4. **Phase 4** — tests, rate limits, observability
+Railway start command:
+
+```bash
+cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Set all production environment variables in Railway. Do not deploy a `.env` file.
+
+See the root `README.md` for full deployment, provider setup, and environment variable documentation.

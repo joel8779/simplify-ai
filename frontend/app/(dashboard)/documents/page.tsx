@@ -21,8 +21,6 @@ export default function DocumentsPage() {
   const loadDocuments = async () => {
     try {
       const response = await documentService.listDocuments();
-      console.log("Documents response:", response);
-      console.log("Documents items:", response.items);
       setDocuments(response.items);
     } catch (error) {
       console.error("Failed to load documents:", error);

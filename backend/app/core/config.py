@@ -176,8 +176,4 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    if not _ENV_FILE.is_file():
-        raise FileNotFoundError(
-            f"Missing {_ENV_FILE}. Copy .env.example to .env and fill in your values."
-        )
     return Settings()

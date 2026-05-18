@@ -1,6 +1,7 @@
 import { api } from "@/lib/api/client";
+import { getApiBaseUrl } from "@/lib/api/config";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_BASE_URL = getApiBaseUrl();
 
 export interface Citation {
   document_id: string;
@@ -71,7 +72,6 @@ export const chatService = {
   },
 
   async createSession(documentIds: string[]): Promise<ChatSessionResponse> {
-    console.debug("[chat] creating session with document IDs", documentIds);
     return api.post<ChatSessionResponse>("/api/v1/chat/sessions", {
       document_ids: documentIds,
     });
@@ -82,7 +82,6 @@ export const chatService = {
     content: string,
     documentIds: string[]
   ): Promise<ChatCompletionResponse> {
-    console.debug("[chat] retrieval scope document IDs", documentIds);
     return api.post<ChatCompletionResponse>(
       `/api/v1/chat/sessions/${sessionId}/messages`,
       {

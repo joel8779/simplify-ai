@@ -62,7 +62,6 @@ export function DocumentSelectorSheet({
   };
 
   const handleApply = () => {
-    console.debug("[chat] selected document IDs", pendingIds);
     setActiveDocuments(pendingIds);
     onOpenChange(false);
   };

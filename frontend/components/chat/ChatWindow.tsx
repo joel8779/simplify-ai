@@ -167,7 +167,6 @@ export function ChatWindow() {
   const handleSend = useCallback(
     async (text: string) => {
       const documentIds = activeDocumentIds;
-      console.debug("[chat] sending selected document IDs", documentIds);
 
       addMessage({
         id: crypto.randomUUID(),

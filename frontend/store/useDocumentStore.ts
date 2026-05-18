@@ -26,8 +26,6 @@ export const useDocumentStore = create<DocumentState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await documentService.listDocuments();
-      console.debug("[documents] API response", response);
-      console.debug("[documents] fetched count", response.items.length);
 
       set({
         documents: response.items.map(mapDocumentMetadataToDocument),
