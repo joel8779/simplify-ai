@@ -6,10 +6,13 @@ from app.api.deps import CurrentUser, get_auth_service
 from app.core.exceptions import UnauthorizedError
 from app.core.security import decode_access_token
 from app.schemas.auth import (
+    ForgotPasswordRequest,
     LoginRequest,
     LogoutRequest,
+    PasswordResetResponse,
     RefreshRequest,
     ResendOtpRequest,
+    ResetPasswordRequest,
     SignupRequest,
     SignupResponse,
     TokenResponse,
@@ -50,6 +53,22 @@ async def resend_otp(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SignupResponse:
     return await auth_service.resend_otp(payload.email)
+
+
+@router.post("/forgot-password", response_model=PasswordResetResponse)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> PasswordResetResponse:
+    return await auth_service.forgot_password(payload.email)
+
+
+@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_password(
+    payload: ResetPasswordRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> None:
+    await auth_service.reset_password(payload)
 
 
 @router.post("/refresh", response_model=TokenResponse)

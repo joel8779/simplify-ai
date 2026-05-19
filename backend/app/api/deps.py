@@ -11,6 +11,9 @@ from app.models.user import UserInDB
 from app.db.repositories.access_token_repo import AccessTokenDenylistRepository
 from app.db.repositories.chat_repo import ChatMessageRepository, ChatSessionRepository
 from app.db.repositories.document_repo import DocumentChunkRepository, DocumentRepository
+from app.db.repositories.pending_password_reset_repo import (
+    PendingPasswordResetRepository,
+)
 from app.db.repositories.pending_signup_repo import PendingSignupRepository
 from app.db.repositories.refresh_token_repo import RefreshTokenRepository
 from app.db.repositories.user_repo import UserRepository
@@ -54,6 +57,12 @@ def get_pending_signup_repo(
     return PendingSignupRepository(db)
 
 
+def get_pending_password_reset_repo(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+) -> PendingPasswordResetRepository:
+    return PendingPasswordResetRepository(db)
+
+
 def get_access_token_repo(
     db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
 ) -> AccessTokenDenylistRepository:
@@ -90,12 +99,16 @@ def get_auth_service(
     pending_signup_repo: Annotated[
         PendingSignupRepository, Depends(get_pending_signup_repo)
     ],
+    pending_password_reset_repo: Annotated[
+        PendingPasswordResetRepository, Depends(get_pending_password_reset_repo)
+    ],
     refresh_repo: Annotated[RefreshTokenRepository, Depends(get_refresh_repo)],
     access_repo: Annotated[AccessTokenDenylistRepository, Depends(get_access_token_repo)],
 ) -> AuthService:
     return AuthService(
         user_repo,
         pending_signup_repo,
+        pending_password_reset_repo,
         refresh_repo,
         access_repo,
         _email_service,

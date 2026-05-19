@@ -12,14 +12,20 @@ from app.core.security import (
     verify_password,
 )
 from app.models.chat import RefreshTokenInDB
+from app.models.pending_password_reset import PendingPasswordResetInDB
 from app.models.pending_signup import PendingSignupInDB
 from app.models.user import UserInDB
 from app.db.repositories.access_token_repo import AccessTokenDenylistRepository
+from app.db.repositories.pending_password_reset_repo import (
+    PendingPasswordResetRepository,
+)
 from app.db.repositories.pending_signup_repo import PendingSignupRepository
 from app.db.repositories.refresh_token_repo import RefreshTokenRepository
 from app.db.repositories.user_repo import UserRepository
 from app.schemas.auth import (
     LoginRequest,
+    PasswordResetResponse,
+    ResetPasswordRequest,
     SignupRequest,
     SignupResponse,
     TokenResponse,
@@ -52,12 +58,14 @@ class AuthService:
         self,
         user_repo: UserRepository,
         pending_signup_repo: PendingSignupRepository,
+        pending_password_reset_repo: PendingPasswordResetRepository,
         refresh_repo: RefreshTokenRepository,
         access_denylist_repo: AccessTokenDenylistRepository,
         email_service: EmailService,
     ) -> None:
         self._users = user_repo
         self._pending_signups = pending_signup_repo
+        self._pending_password_resets = pending_password_reset_repo
         self._refresh = refresh_repo
         self._access_denylist = access_denylist_repo
         self._email = email_service
@@ -142,6 +150,46 @@ class AuthService:
             pending=pending,
             enforce_cooldown=True,
         )
+
+    async def forgot_password(self, email: str) -> PasswordResetResponse:
+        normalized_email = email.lower()
+        user = await self._users.find_by_email(normalized_email)
+        if not user or not user.email_verified or not user.is_active:
+            raise UnauthorizedError("No active account found for this email")
+
+        pending = await self._pending_password_resets.find_by_email(normalized_email)
+        return await self._send_password_reset_otp(
+            email=normalized_email,
+            pending=pending,
+            enforce_cooldown=pending is not None,
+        )
+
+    async def reset_password(self, payload: ResetPasswordRequest) -> None:
+        email = payload.email.lower()
+        pending = await self._pending_password_resets.find_by_email(email)
+        if not pending:
+            raise UnauthorizedError("Invalid password reset code")
+
+        otp_expires_at = _as_aware(pending.otp_expires_at)
+        if not pending.otp_hash or not otp_expires_at:
+            raise ValidationAppError("Password reset code expired. Request a new code.")
+        if otp_expires_at < datetime.now(timezone.utc):
+            raise ValidationAppError("Password reset code expired. Request a new code.")
+        if not secrets.compare_digest(
+            pending.otp_hash, _hash_otp(pending.email, payload.otp)
+        ):
+            raise UnauthorizedError("Invalid password reset code")
+
+        user = await self._users.find_by_email(email)
+        if not user or not user.email_verified or not user.is_active:
+            raise UnauthorizedError("No active account found for this email")
+
+        await self._users.update(
+            str(user.id), {"hashed_password": hash_password(payload.new_password)}
+        )
+        await self._users.increment_session_version(str(user.id))
+        await self._refresh.revoke_all_for_user(str(user.id))
+        await self._pending_password_resets.delete_by_email(email)
 
     async def refresh(self, raw_refresh_token: str) -> TokenResponse:
         token_hash = _hash_refresh_token(raw_refresh_token)
@@ -265,6 +313,70 @@ class AuthService:
             expires_minutes=settings.otp_expire_minutes,
         )
         return SignupResponse(
+            email=email,
+            expires_in_seconds=settings.otp_expire_minutes * 60,
+            resend_after_seconds=settings.otp_resend_cooldown_seconds,
+        )
+
+    async def _send_password_reset_otp(
+        self,
+        *,
+        email: str,
+        pending: PendingPasswordResetInDB | None,
+        enforce_cooldown: bool,
+    ) -> PasswordResetResponse:
+        settings = get_settings()
+        now = datetime.now(timezone.utc)
+        window_started = _as_aware(
+            pending.otp_window_started_at if pending else None
+        )
+        if (
+            not window_started
+            or window_started
+            < now - timedelta(minutes=settings.otp_rate_limit_window_minutes)
+        ):
+            window_started = now
+            send_count = 0
+        else:
+            send_count = pending.otp_send_count if pending else 0
+
+        otp_last_sent_at = _as_aware(pending.otp_last_sent_at if pending else None)
+        if enforce_cooldown and otp_last_sent_at:
+            elapsed = (now - otp_last_sent_at).total_seconds()
+            if elapsed < settings.otp_resend_cooldown_seconds:
+                retry_after = settings.otp_resend_cooldown_seconds - int(elapsed)
+                raise ValidationAppError(
+                    "Please wait before requesting another code.",
+                    details={"retry_after_seconds": retry_after},
+                )
+
+        if send_count >= settings.otp_max_requests_per_window:
+            raise ValidationAppError(
+                "Too many password reset codes requested. Try again later.",
+                details={
+                    "retry_after_seconds": settings.otp_rate_limit_window_minutes * 60
+                },
+            )
+
+        otp = f"{secrets.randbelow(1_000_000):06d}"
+        expires_at = now + timedelta(minutes=settings.otp_expire_minutes)
+        await self._pending_password_resets.upsert_by_email(
+            PendingPasswordResetInDB(
+                email=email,
+                otp_hash=_hash_otp(email, otp),
+                otp_expires_at=expires_at,
+                otp_last_sent_at=now,
+                otp_send_count=send_count + 1,
+                otp_window_started_at=window_started,
+            )
+        )
+
+        await self._email.send_password_reset_otp(
+            to_email=email,
+            otp=otp,
+            expires_minutes=settings.otp_expire_minutes,
+        )
+        return PasswordResetResponse(
             email=email,
             expires_in_seconds=settings.otp_expire_minutes * 60,
             resend_after_seconds=settings.otp_resend_cooldown_seconds,

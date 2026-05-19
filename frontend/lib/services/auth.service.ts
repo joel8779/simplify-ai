@@ -25,6 +25,12 @@ export interface SignupResponse {
   resend_after_seconds: number;
 }
 
+export interface PasswordResetResponse {
+  email: string;
+  expires_in_seconds: number;
+  resend_after_seconds: number;
+}
+
 export const authService = {
   async signup(credentials: SignupCredentials): Promise<SignupResponse> {
     return api.post<SignupResponse>('/api/v1/auth/signup', {
@@ -65,6 +71,18 @@ export const authService = {
 
   async resendOtp(email: string): Promise<SignupResponse> {
     return api.post<SignupResponse>('/api/v1/auth/resend-otp', { email });
+  },
+
+  async forgotPassword(email: string): Promise<PasswordResetResponse> {
+    return api.post<PasswordResetResponse>('/api/v1/auth/forgot-password', { email });
+  },
+
+  async resetPassword(credentials: {
+    email: string;
+    otp: string;
+    new_password: string;
+  }): Promise<void> {
+    await api.post('/api/v1/auth/reset-password', credentials);
   },
 
   async refreshToken(): Promise<void> {

@@ -34,6 +34,22 @@ class ResendOtpRequest(BaseModel):
     email: EmailStr
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class PasswordResetResponse(BaseModel):
+    email: EmailStr
+    expires_in_seconds: int
+    resend_after_seconds: int
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str
 
