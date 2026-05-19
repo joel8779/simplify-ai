@@ -1,13 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Link from "next/link";
-import { ArrowRight, CheckCircle2, PlayCircle, ShieldCheck, Sparkles } from "lucide-react";
+import { CheckCircle2, ShieldCheck, Sparkles } from "lucide-react";
 import { GetStartedButton } from "@/components/marketing/GetStartedButton";
 import { HeroBackground } from "@/components/marketing/HeroBackground";
 import { HeroDashboardMockup } from "@/components/marketing/HeroDashboardMockup";
 import { BRAND_DESCRIPTION, BRAND_TAGLINE } from "@/lib/constants/brand";
-import { ROUTES } from "@/lib/constants/navigation";
 
 const trustIndicators = [
   "Cited answers",
@@ -58,17 +56,9 @@ export function HeroSection() {
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.24 }}
-            className="mt-9 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start"
+            className="mt-9 flex justify-center lg:justify-start"
           >
             <GetStartedButton size="lg" />
-            <Link
-              href={ROUTES.login}
-              className="group inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-6 text-sm font-medium text-foreground shadow-lg shadow-black/10 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-white/[0.075] hover:shadow-primary/15"
-            >
-              <PlayCircle className="h-4 w-4 text-primary" />
-              View demo workspace
-              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </Link>
           </motion.div>
 
           <motion.div
