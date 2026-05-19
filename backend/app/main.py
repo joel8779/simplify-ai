@@ -29,6 +29,7 @@ async def lifespan(_: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    logger = get_logger(__name__)
     app = FastAPI(
         title=settings.app_name,
         version="1.0.0",
@@ -39,11 +40,48 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origin_list,
+        allow_origins=settings.effective_cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def cors_diagnostics(request: Request, call_next):
+        origin = request.headers.get("origin")
+        is_preflight = (
+            request.method == "OPTIONS"
+            and "access-control-request-method" in request.headers
+        )
+        if origin or is_preflight:
+            logger.info(
+                "CORS diagnostic: method=%s path=%s origin=%s "
+                "preflight=%s requested_method=%s requested_headers=%s "
+                "configured_origins=%s",
+                request.method,
+                request.url.path,
+                origin,
+                is_preflight,
+                request.headers.get("access-control-request-method"),
+                request.headers.get("access-control-request-headers"),
+                settings.effective_cors_origins,
+            )
+
+        response = await call_next(request)
+
+        if origin or is_preflight:
+            logger.info(
+                "CORS diagnostic response: method=%s path=%s status=%s "
+                "allow_origin=%s allow_methods=%s allow_headers=%s",
+                request.method,
+                request.url.path,
+                response.status_code,
+                response.headers.get("access-control-allow-origin"),
+                response.headers.get("access-control-allow-methods"),
+                response.headers.get("access-control-allow-headers"),
+            )
+
+        return response
 
     @app.exception_handler(AppError)
     async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:

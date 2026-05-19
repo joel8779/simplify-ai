@@ -116,4 +116,42 @@
   .gradient-text {
     @apply bg-gradient-to-r from-blue-400 via-violet-400 to-purple-400 bg-clip-text text-transparent;
   }
+
+  .animated-gradient-text {
+    @apply bg-gradient-to-r from-blue-300 via-violet-300 to-purple-300 bg-clip-text text-transparent;
+    background-size: 220% 220%;
+    animation: gradient-shift 7s ease-in-out infinite;
+  }
+
+  .hero-grid {
+    animation: hero-grid-drift 24s linear infinite;
+  }
+}
+
+@keyframes gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes hero-grid-drift {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 52px 52px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated-gradient-text,
+  .hero-grid {
+    animation: none;
+  }
 }

@@ -1,4 +1,5 @@
 from functools import lru_cache
+import json
 from pathlib import Path
 from typing import List
 
@@ -25,7 +26,11 @@ class Settings(BaseSettings):
 
     host: str = "0.0.0.0"
     port: int = 8000
-    cors_origins: str = "http://localhost:3000,https://simplify-ai-lilac.vercel.app"
+    cors_origins: str | List[str] = [
+        "http://localhost:3000",
+        "https://simplify-ai-lilac.vercel.app",
+    ]
+    cors_allow_all_origins: bool = False
 
     mongodb_uri: str = Field(..., description="MongoDB Atlas connection string")
     mongodb_db_name: str = "simplify"
@@ -101,9 +106,17 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def parse_cors(cls, value: str | List[str]) -> str:
+    def parse_cors(cls, value: str | List[str]) -> str | List[str]:
         if isinstance(value, list):
-            return ",".join(value)
+            return value
+        stripped = value.strip()
+        if stripped.startswith("["):
+            try:
+                parsed = json.loads(stripped)
+            except json.JSONDecodeError:
+                return value
+            if isinstance(parsed, list):
+                return [str(origin) for origin in parsed]
         return value
 
     @field_validator("debug", mode="before")
@@ -159,7 +172,22 @@ class Settings(BaseSettings):
 
     @property
     def cors_origin_list(self) -> List[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        origins = (
+            self.cors_origins
+            if isinstance(self.cors_origins, list)
+            else self.cors_origins.split(",")
+        )
+        return [
+            origin.strip().strip("\"'").rstrip("/")
+            for origin in origins
+            if origin.strip().strip("\"'")
+        ]
+
+    @property
+    def effective_cors_origins(self) -> List[str]:
+        if self.cors_allow_all_origins:
+            return ["*"]
+        return self.cors_origin_list
 
     @property
     def allowed_extension_set(self) -> set[str]:
