@@ -2,7 +2,7 @@ import json
 from typing import AsyncGenerator, List
 
 from app.core.config import get_settings
-from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.exceptions import AppError, NotFoundError, ValidationAppError
 from app.core.logging import get_logger
 from app.models.chat import ChatMessageInDB, ChatSessionInDB, MessageRole
 from app.db.repositories.chat_repo import ChatMessageRepository, ChatSessionRepository
@@ -196,6 +196,14 @@ class ChatService:
         session_id: str,
         payload: ChatMessageCreate,
     ) -> AsyncGenerator[str, None]:
+        return await self.open_message_stream(user_id, session_id, payload)
+
+    async def open_message_stream(
+        self,
+        user_id: str,
+        session_id: str,
+        payload: ChatMessageCreate,
+    ) -> AsyncGenerator[str, None]:
         session = await self._sessions.find_by_id(session_id, user_id)
         if not session:
             raise NotFoundError("Chat session")
@@ -217,58 +225,93 @@ class ChatService:
         )
         await self._messages.create(user_message)
 
-        plan = await self._rag.stream_answer(
-            user_id=user_id,
-            query=payload.content,
-            document_ids=document_ids,
-            history=history,
-        )
+        async def event_stream() -> AsyncGenerator[str, None]:
+            try:
+                plan = await self._rag.stream_answer(
+                    user_id=user_id,
+                    query=payload.content,
+                    document_ids=document_ids,
+                    history=history,
+                )
 
-        citations = (
-            self._chunks_to_citations(plan.chunks)
-            if plan.response_mode == ResponseMode.RAG
-            else []
-        )
+                citations = (
+                    self._chunks_to_citations(plan.chunks)
+                    if plan.response_mode == ResponseMode.RAG
+                    else []
+                )
 
-        content_parts: list[str] = []
-        yield self._sse(
-            "meta",
-            {
-                "session_id": session_id,
-                "response_mode": plan.response_mode.value,
-                "citations": [c.model_dump() for c in citations],
-            },
-        )
+                content_parts: list[str] = []
+                yield self._sse(
+                    "meta",
+                    {
+                        "session_id": session_id,
+                        "response_mode": plan.response_mode.value,
+                        "citations": [c.model_dump() for c in citations],
+                    },
+                )
 
-        async for token in plan.token_stream:
-            content_parts.append(token)
-            yield self._sse("delta", {"content": token})
+                async for token in plan.token_stream:
+                    content_parts.append(token)
+                    yield self._sse("delta", {"content": token})
 
-        content = "".join(content_parts).strip()
-        assistant_message = ChatMessageInDB(
-            session_id=session_id,
-            user_id=user_id,
-            role=MessageRole.ASSISTANT,
-            content=content,
-            document_ids=document_ids,
-            citations=[c.model_dump() for c in citations],
-            response_mode=plan.response_mode.value,
-        )
-        assistant_message = await self._messages.create(assistant_message)
+                content = "".join(content_parts).strip()
+                assistant_message = ChatMessageInDB(
+                    session_id=session_id,
+                    user_id=user_id,
+                    role=MessageRole.ASSISTANT,
+                    content=content,
+                    document_ids=document_ids,
+                    citations=[c.model_dump() for c in citations],
+                    response_mode=plan.response_mode.value,
+                )
+                assistant_message = await self._messages.create(assistant_message)
 
-        await self._sessions.update(
-            session_id,
-            user_id,
-            {"document_ids": document_ids, "title": self._derive_title(session, payload)},
-        )
+                await self._sessions.update(
+                    session_id,
+                    user_id,
+                    {
+                        "document_ids": document_ids,
+                        "title": self._derive_title(session, payload),
+                    },
+                )
 
-        response = ChatCompletionResponse(
-            session_id=session_id,
-            message=self._message_response(assistant_message),
-            citations=citations,
-            response_mode=plan.response_mode,
-        )
-        yield self._sse("done", response.model_dump(mode="json"))
+                response = ChatCompletionResponse(
+                    session_id=session_id,
+                    message=self._message_response(assistant_message),
+                    citations=citations,
+                    response_mode=plan.response_mode,
+                )
+                yield self._sse("done", response.model_dump(mode="json"))
+            except AppError as exc:
+                logger.warning(
+                    "Chat stream failed user=%s session=%s code=%s",
+                    user_id,
+                    session_id,
+                    exc.code,
+                )
+                yield self._sse(
+                    "error",
+                    {
+                        "code": exc.code,
+                        "message": exc.message,
+                        "details": exc.details,
+                    },
+                )
+            except Exception:
+                logger.exception(
+                    "Unexpected chat stream failure user=%s session=%s",
+                    user_id,
+                    session_id,
+                )
+                yield self._sse(
+                    "error",
+                    {
+                        "code": "stream_error",
+                        "message": "Chat stream failed unexpectedly",
+                    },
+                )
+
+        return event_stream()
 
     async def _validate_document_scope(
         self, user_id: str, document_ids: List[str]

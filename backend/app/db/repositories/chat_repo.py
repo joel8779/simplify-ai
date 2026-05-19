@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.core.exceptions import ExternalServiceError
 from app.models.chat import ChatMessageInDB, ChatSessionInDB
 from app.models.common import utc_now
 from app.db.repositories.base import BaseRepository
@@ -50,11 +51,6 @@ class ChatSessionRepository(BaseRepository):
     async def count_by_user(self, user_id: str) -> int:
         return await self._collection.count_documents({"user_id": user_id})
 
-    async def count_by_session(self, session_id: str, user_id: str) -> int:
-        return await self._collection.count_documents(
-            {"session_id": session_id, "user_id": user_id}
-        )
-
     async def delete_by_user(self, user_id: str) -> int:
         result = await self._collection.delete_many({"user_id": user_id})
         return result.deleted_count
@@ -90,6 +86,17 @@ class ChatMessageRepository(BaseRepository):
 
     async def count_by_user(self, user_id: str) -> int:
         return await self._collection.count_documents({"user_id": user_id})
+
+    async def count_by_session(self, session_id: str, user_id: str) -> int:
+        collection = getattr(self, "_collection", None)
+        if collection is None:
+            raise ExternalServiceError(
+                "Chat message collection is unavailable",
+                service="mongodb",
+            )
+        return await collection.count_documents(
+            {"session_id": session_id, "user_id": user_id}
+        )
 
     async def count_by_sessions(self, user_id: str) -> dict[str, int]:
         pipeline = [

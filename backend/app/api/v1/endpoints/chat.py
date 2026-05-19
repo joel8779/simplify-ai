@@ -108,8 +108,9 @@ async def stream_message(
     current_user: CurrentUser,
     chat_service: ChatService = Depends(get_chat_service),
 ) -> StreamingResponse:
+    stream = await chat_service.stream_message(str(current_user.id), session_id, payload)
     return StreamingResponse(
-        chat_service.stream_message(str(current_user.id), session_id, payload),
+        stream,
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
