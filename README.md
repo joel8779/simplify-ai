@@ -52,16 +52,6 @@ Railway
 | AI | Gemini chat + embedding models |
 | Deployment | Vercel frontend, Railway backend |
 
-## Screenshots
-
-Add production screenshots here after deployment:
-
-- Landing page
-- Login and OTP verification
-- Dashboard analytics
-- Document upload/library
-- Chat with streamed answer and citations
-- Settings/security page
 
 ## Local Setup
 
