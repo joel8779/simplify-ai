@@ -89,16 +89,16 @@ Simplify AI processes and queries documents through a multi-stage RAG execution 
 
 ---
 
-## System Screens (Placeholders)
+## System Screens
 
 ### 1. Document Upload Library
-> *Placeholder: Capture a screenshot of the main file library page displaying the drag-and-drop file uploader and the list of processed, indexed documents.*
+![Document Upload Library](docs/screenshots/documents.jpg)
 
-### 2. Conversational QA Panel (Streaming & Citations)
-> *Placeholder: Capture a screenshot of the chat workspace showing a streamed answer, highlighting the citation cards containing document page numbers and text excerpts.*
+### 2. Conversational QA Panel (Semantic Retrieval & Citations)
+![Conversational QA Panel](docs/screenshots/chat.jpg)
 
-### 3. Dashboard Analytics UI
-> *Placeholder: Capture a screenshot of the analytics overview dashboard displaying total documents, chat histories, and usage charts.*
+### 3. Settings UI (SaaS Management)
+![Settings UI](docs/screenshots/settings.jpg)
 
 ---
 
