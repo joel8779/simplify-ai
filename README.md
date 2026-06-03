@@ -1,24 +1,62 @@
 # Simplify AI
 
-> A full-stack SaaS RAG platform for secure document retrieval and conversational QA.
+> **Full-Stack SaaS RAG Platform** — Secure document retrieval, conversational QA, and semantic search.
 
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js-black?style=flat&logo=nextdotjs)](https://nextjs.org/)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Database](https://img.shields.io/badge/Database-MongoDB_Atlas-green?style=flat&logo=mongodb)](https://www.mongodb.com/atlas)
-[![Vector DB](https://img.shields.io/badge/Vector_DB-Pinecone-blue?style=flat)](https://www.pinecone.io/)
-[![Storage](https://img.shields.io/badge/Storage-Supabase_Storage-3ECF8E?style=flat&logo=supabase)](https://supabase.com/storage)
-[![Model](https://img.shields.io/badge/AI-Gemini_2.5_Flash-orange?style=flat)](https://ai.google.dev/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat)](LICENSE)
-
-Simplify AI is a full-stack SaaS RAG (Retrieval-Augmented Generation) application designed for private document retrieval and interactive QA. It provides users with a secure workspace to upload multi-format documents (PDF, DOCX, TXT, MD), index them into a similarity vector store, and conduct natural-language queries that stream grounded answers complete with precise page-level citations.
-
-The project is architected as a decoupled system: a Next.js (App Router) client dashboard hosted on Vercel, a Python FastAPI backend deployed on Railway, MongoDB Atlas for operational application metadata, Supabase Storage for secure file hosting, Pinecone for index retrieval, and Google's Gemini models for embedding and inference generation.
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-teal?style=flat-square&logo=vercel)](https://simplify-ai-lilac.vercel.app/)
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js_15-black?style=flat-square&logo=nextdotjs)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Database](https://img.shields.io/badge/Database-MongoDB_Atlas-green?style=flat-square&logo=mongodb)](https://www.mongodb.com/atlas)
+[![Vector DB](https://img.shields.io/badge/Vector_DB-Pinecone-blue?style=flat-square)](https://www.pinecone.io/)
+[![Storage](https://img.shields.io/badge/Storage-Supabase-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com/storage)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
 ---
 
-## System Architecture
+## 📌 Overview
 
-The interaction and data-flow model between the decoupled service boundaries is structured below:
+**Simplify AI** is a decoupled full-stack application that provides users with secure workspaces to upload, index, and query private documents (PDF, DOCX, TXT, MD). The system generates vector embeddings, stores them in a spatial index, and uses grounded prompts to stream contextual answers with page-level citations in real time.
+
+---
+
+## ⚡ Live Deployments
+
+*   **Production Web App**: [https://simplify-ai-lilac.vercel.app/](https://simplify-ai-lilac.vercel.app/)
+*   **API Health Endpoint**: `https://saas-rag-production.up.railway.app/api/v1/health` (FastAPI backend deployed on Railway)
+
+---
+
+## ⚠️ The Problem
+
+Many Retrieval-Augmented Generation (RAG) tools are built as monolithic scripts or generic wrappers around API endpoints. These designs suffer from:
+1.  **Gateway Timeouts**: Blocking API threads while parsing large documents or creating hundreds of embeddings.
+2.  **Weak Security**: Hardcoded single-token structures that risk session hijacking if tokens are stolen.
+3.  **High Latency**: Waiting for complete LLM inference blocks to finish before returning responses to the user.
+4.  **No Contextual Grounding**: Generating generic replies that lack verifiable references, leading to AI hallucinations.
+
+---
+
+## 💡 The Solution
+
+Simplify AI addresses these issues using a production-adjacent, decoupled architecture:
+*   **Asynchronous Processing**: Immediate API responses with `processing` flags, delegating extraction and embedding tasks to background execution queues.
+*   **Multi-Stage Auth Rotation**: Short-lived JWT access tokens paired with long-lived rotated refresh tokens and revocation lists.
+*   **Low-Latency Stream Injection**: Progressive token delivery using Server-Sent Events (SSE) and native browser streams.
+*   **Grounded Verification**: A citation metadata pipeline that links every generated block to verified source page numbers and text excerpts.
+
+---
+
+## ✨ Features
+
+*   **SaaS-Ready Security**: Email verification via SMTP One-Time Passwords (OTP), and JWT access/refresh token rotation with signature-based MongoDB revocation.
+*   **Multi-Format Parsing**: Automatic structure detection and content extraction for `.pdf`, `.docx`, `.txt`, and `.md` files.
+*   **Semantic Vector Indexes**: Chunks parsed text using character-overlapping splitters, converts chunks to 3072-dimensional embeddings via Gemini, and indexes them in Pinecone namespaces.
+*   **SSE Token Streaming**: Pushes generator-driven chunk deltas from FastAPI to Next.js using `StreamingResponse` and fetches browser-side stream readers.
+*   **Grounded Citations**: Maps similarity search nodes back to database-backed chunk excerpts, rendering clickable citation cards.
+*   **Responsive Dark Mode**: Minimalist interface built on Tailwind CSS, Radix UI primitives, and state managed by Zustand.
+
+---
+
+## 🏗️ Architecture
 
 ```mermaid
 graph TD
@@ -35,20 +73,20 @@ graph TD
     end
 
     subgraph Infrastructure [Data Infrastructure]
-        Mongo[(MongoDB Atlas - Metadata & Chat Logs)]
-        Supa[(Supabase Storage - Source Files)]
-        Pine[(Pinecone Vector Database - Embeddings)]
-        Gemini[Google Gemini API - Embeddings & LLM]
+        Mongo[(MongoDB Atlas - Metadata & Revocations)]
+        Supa[(Supabase Storage - Binary Source Files)]
+        Pine[(Pinecone Vector Database - Vector Embeddings)]
+        Gemini[Google Gemini API - Embeddings & Inference]
     end
 
     %% Network flows
     Next -->|HTTPS REST Request| Fast
-    Next -->|fetch SSE stream| Fast
+    Next -->|Fetch SSE stream| Fast
     Fast --> Auth
     Fast --> RAG
     
     Auth -->|Read/Write User States| Mongo
-    RAG -->|Upload Source| Supa
+    RAG -->|Upload Source File| Supa
     RAG -->|Embed Text Chunks| Gemini
     RAG -->|Upsert/Query Vectors| Pine
     RAG -->|Read/Write Chat Context| Mongo
@@ -61,69 +99,90 @@ graph TD
 
 ---
 
-## RAG Pipeline
+## 🧬 RAG Pipeline Flow
 
-Simplify AI processes and queries documents through a multi-stage RAG execution pipeline:
+```
+[ Upload File ]
+       │
+       ▼
+[ Extension & Size Validation ]
+       │
+       ▼
+[ Upload Binary to Supabase Storage ]
+       │
+       ▼
+[ Parse Extract Text (pypdf/docx) ]
+       │
+       ▼
+[ LangChain Text Chunking ] (800 chars, 200 overlap)
+       │
+       ▼
+[ Gemini 3072-D Embeddings ] (gemini-embedding-001)
+       │
+       ▼
+┌──────┴──────────────────────────┐
+│                                 ▼
+▼                         [ Upsert to Pinecone ]
+[ Store Text Excerpts & Metadata ]  (Namespace isolation)
+(MongoDB Atlas mappings)
+```
 
-1.  **File Ingestion & Validation**: The user uploads a document through the frontend dashboard. The backend validates the extension (`.pdf`, `.docx`, `.txt`, `.md`) and enforces a file size limit (default `25MB`).
-2.  **Object Storage**: The validated file is uploaded to a private Supabase Storage bucket. This isolates raw binary assets from database storage.
-3.  **Parsing & Chunking**: Text is extracted from the document using customized parsers and chunked into overlapping segments (default `800` characters with a `200` character overlap) using LangChain text splitters to maintain semantic coherence.
-4.  **Embedding Generation**: The text chunks are passed to the Gemini embedding API (`models/gemini-embedding-001`) to generate `3072`-dimensional dense vector representations.
-5.  **Vector Store & Metadata Mapping**:
-    *   The `3072`-dimension embeddings are upserted to Pinecone under a unique workspace namespace.
-    *   The text chunks, document relationship mapping, page numbers, and relative offsets are stored in MongoDB Atlas to support quick citation reconstructions.
-6.  **Semantic Search (Retrieval)**: When the user asks a question, the backend embeds the query using Gemini and searches Pinecone for the top `8` contextually similar chunks.
-7.  **Answer Generation (Grounded Prompting)**: The retrieved chunks are formatted into a grounded system prompt. The model is instructed to answer the user's question *only* using the provided text blocks, returning references when matching data points.
-8.  **Server-Sent Event Streaming**: The FastAPI backend streams the response back to the client using a Chunked Transfer response. The frontend reads the stream progressively using the browser's `ReadableStream` API, displaying tokens in real time alongside responsive citation cards.
+1.  **Ingest & Validate**: The client posts a file. The backend checks format restrictions and enforces a `25MB` ceiling.
+2.  **Persist Source**: The raw binary is uploaded to Supabase Storage, segregating database records from raw binaries.
+3.  **Extract & Segment**: A background worker parses text, creating overlapping segments via character-based splitters to maintain cross-chunk context.
+4.  **Vector Generation**: Text segments are sent to `models/gemini-embedding-001` to generate dense vector indices.
+5.  **Index & Database Mappings**:
+    *   Embeddings are upserted into Pinecone within the user's isolated namespace.
+    *   Excerpts, page numbers, offsets, and document links are indexed in MongoDB Atlas.
+6.  **Semantic Similarity Retrieval**: When a query is received, the backend generates an embedding of the query, retrieves the top $k=8$ matching nodes from Pinecone, and reads the original text chunks from MongoDB.
+7.  **Grounded Generation**: The server feeds the retrieved context and system instructions into `gemini-2.5-flash`, forcing it to respond *only* with the provided context.
+8.  **SSE Streams**: FastAPI streams delta chunks to the client, while Next.js parses the tokens, rendering interactive citation cards matching the source excerpts.
 
 ---
 
-## Features
+## 📸 Screenshots
 
-*   **SaaS-Grade Security**: Short-lived JWT access tokens with long-lived refresh token rotation, global logout access-token denylisting, and secure email OTP verification during registration.
-*   **Persistent Conversations**: Full database-backed chat histories featuring session renaming, soft deletions, and responsive loading.
-*   **Detailed Citations**: Interactive citation cards linked to streamed answers, detailing matching excerpt text, page numbers, and source document metadata.
-*   **Hybrid Chat Fallback**: Contextual RAG routing that defaults to a standard general assistant prompt if Pinecone similarity scoring returns no relevant document matches.
-*   **Dashboard Analytics**: Live data widgets tracking total document pages, uploaded files size, and message history metrics.
-*   **Sleek Dark Mode Theme**: Minimalist, responsive UI built with Tailwind CSS, Next.js components, and state synchronization via Zustand.
-
----
-
-## System Screens
-
-### 1. Document Upload Library
-![Document Upload Library](docs/screenshots/documents.jpg)
-
-### 2. Conversational QA Panel (Semantic Retrieval & Citations)
-![Conversational QA Panel](docs/screenshots/chat.jpg)
-
-### 3. Settings UI (SaaS Management)
-![Settings UI](docs/screenshots/settings.jpg)
+<table>
+  <tr>
+    <td align="center"><b>Document Library</b></td>
+    <td align="center"><b>Conversational RAG Panel</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/documents.jpg" alt="Documents Dashboard" width="100%"/></td>
+    <td><img src="docs/screenshots/chat.jpg" alt="Semantic QA Interface" width="100%"/></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><b>Workspace Settings (SaaS Verification)</b></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/screenshots/settings.jpg" alt="Profile Settings" width="50%"/></td>
+  </tr>
+</table>
 
 ---
 
-## Tech Stack
+## 🛠️ Tech Stack
 
-| Layer | Technologies | Description |
+| Layer | Technology | Role |
 | :--- | :--- | :--- |
-| **Frontend UI** | Next.js 14, React 18, TypeScript, Tailwind CSS | App Router client layout with state stores managed by Zustand. |
-| **Backend API** | FastAPI, Python 3.11+, Uvicorn | Web API service utilizing async handlers and Pydantic validators. |
-| **Database** | MongoDB Atlas (via `motor`) | Document storage holding users, chat logs, and chunk text metadata. |
-| **Vector DB** | Pinecone | Index storing high-dimensional embeddings for cosine similarity lookups. |
-| **Object Storage**| Supabase Storage | S3-compatible cloud storage hosting raw PDF and word document files. |
-| **AI Models** | Google Gemini API | `gemini-2.5-flash` for inference; `gemini-embedding-001` for vectors. |
-| **Mail Delivery** | SMTP Service | Handles registration verification OTPs. |
+| **Frontend UI** | Next.js 15, React 19, TypeScript, Tailwind CSS | App Router client layout; state stores managed by Zustand. |
+| **Backend API** | FastAPI 0.115, Python 3.11+, Uvicorn | Async route handlers, validation schemas (Pydantic v2). |
+| **Database** | MongoDB Atlas (via `motor` driver) | Mappings, chat logs, user schemas, and token denylists. |
+| **Vector DB** | Pinecone | Dense vector indexes and namespace queries. |
+| **Storage** | Supabase Storage | Secure bucket hosting for raw binaries. |
+| **AI Models** | Google Gemini API | `gemini-2.5-flash` (inference), `gemini-embedding-001` (embeddings). |
+| **Mail** | SMTP Service | User signup and email OTP delivery. |
 
 ---
 
-## Local Setup
+## 🚀 Local Setup
 
 ### Prerequisites
-*   Node.js 20+ installed.
-*   Python 3.11+ installed.
-*   Access keys for MongoDB Atlas, Pinecone, Supabase, and Google Gemini.
+*   Node.js 22+
+*   Python 3.11+
+*   MongoDB, Pinecone, Supabase, and Google Gemini API keys.
 
-### 1. Backend Service Configuration
+### 1. Backend Setup
 1. Navigate to the `backend/` directory:
    ```bash
    cd backend
@@ -131,27 +190,26 @@ Simplify AI processes and queries documents through a multi-stage RAG execution 
 2. Create and activate a Python virtual environment:
    ```bash
    python -m venv .venv
-   # Windows (PowerShell):
+   # Windows:
    .venv\Scripts\activate
-   # Linux/macOS:
+   # macOS/Linux:
    source .venv/bin/activate
    ```
-3. Install the required dependencies:
+3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 4. Copy the environment variables template and configure it:
    ```bash
    cp .env.example .env
+   # Edit .env with your private credentials
    ```
-5. Set the required variables in `.env` (refer to the Environment Variables section below).
-6. Start the development server:
+5. Run the web server:
    ```bash
    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
-7. Verify the service is running by navigating to `http://127.0.0.1:8000/api/v1/health`.
 
-### 2. Frontend Interface Configuration
+### 2. Frontend Setup
 1. Navigate to the `frontend/` directory:
    ```bash
    cd ../frontend
@@ -160,11 +218,12 @@ Simplify AI processes and queries documents through a multi-stage RAG execution 
    ```bash
    npm install
    ```
-3. Copy the environment variables template:
+3. Copy environment configurations:
    ```bash
    cp .env.example .env.local
+   # Edit with Next.js configurations
    ```
-4. Start the local Next.js server:
+4. Start the Next.js development server:
    ```bash
    npm run dev
    ```
@@ -172,33 +231,35 @@ Simplify AI processes and queries documents through a multi-stage RAG execution 
 
 ---
 
-## Environment Variables
+## 📋 Environment Variables
 
-### Backend (`backend/.env`)
+### Backend Setup (`backend/.env`)
 ```env
 APP_ENV=development
 DEBUG=true
 API_V1_PREFIX=/api/v1
 CORS_ORIGINS=http://localhost:3000
 
-# Databases & Vector Stores
+# Relational & NoSQL Metadata
 MONGODB_URI=mongodb+srv://...
 MONGODB_DB_NAME=simplify
+
+# Vector Configurations
 VECTOR_STORE_PROVIDER=pinecone
 PINECONE_API_KEY=your-pinecone-key
 PINECONE_INDEX_NAME=simplify-documents
 PINECONE_NAMESPACE=simplify
 PINECONE_DIMENSION=3072
 
-# Storage & AI
-SUPABASE_URL=https://your-supabase-project.supabase.co
-SUPABASE_SERVICE_KEY=your-supabase-service-role-key
+# Storage & AI Mappings
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key
 SUPABASE_BUCKET=documents
 GEMINI_API_KEY=your-gemini-key
 GEMINI_CHAT_MODEL=models/gemini-2.5-flash
 GEMINI_EMBEDDING_MODEL=models/gemini-embedding-001
 
-# Security & Verification
+# Security & Mail
 JWT_SECRET_KEY=generate-a-strong-random-key
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
@@ -211,7 +272,7 @@ SMTP_FROM_EMAIL=no-reply@simplify.ai
 SMTP_FROM_NAME="Simplify AI"
 ```
 
-### Frontend (`frontend/.env.local`)
+### Frontend Setup (`frontend/.env.local`)
 ```env
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 NEXT_PUBLIC_MAX_DOCUMENTS_PER_CHAT=8
@@ -219,68 +280,73 @@ NEXT_PUBLIC_MAX_DOCUMENTS_PER_CHAT=8
 
 ---
 
-## API Structure
+## 📁 Project Structure
 
-The backend exposes a structured REST API under the `/api/v1` prefix:
-
-### Authentication
-*   `POST /auth/signup`: Initiates registration, creating a pending account and sending an email OTP.
-*   `POST /auth/verify-otp`: Validates the signup OTP code and registers the active user profile.
-*   `POST /auth/login`: Validates user credentials, returning access and refresh JWT tokens.
-*   `POST /auth/refresh`: Processes a refresh token to rotate keys.
-*   `POST /auth/logout`: Revokes refresh tokens and adds active access tokens to the denylist database.
-
-### Documents
-*   `POST /documents/upload`: Accepts files, writes to Supabase, generates embeddings, and indexes chunks.
-*   `GET /documents`: Lists all indexed files with processing statuses.
-*   `DELETE /documents/{id}`: Removes the document metadata, storage file, and Pinecone vectors.
-
-### Chat & Generation
-*   `POST /chats`: Creates a new persistent chat session.
-*   `GET /chats`: Retrieves user chat histories.
-*   `POST /chats/{id}/messages`: Streams inference tokens from the RAG orchestrator using fetch readable streams.
+```
+simplify-ai/
+├── backend/
+│   ├── app/
+│   │   ├── api/             # REST routing entry points
+│   │   ├── core/            # Configs, authorization middlewares
+│   │   ├── db/              # MongoDB clients, session setups
+│   │   ├── models/          # Data schemas and entities
+│   │   ├── repositories/    # Database abstraction queries
+│   │   ├── services/        # RAG pipeline, parsing, JWT managers
+│   │   └── main.py          # FastAPI application initialization
+│   ├── requirements.txt
+│   └── Dockerfile
+└── frontend/
+    ├── app/                 # Next.js App Router (Layouts/Routes)
+    ├── components/          # Reusable Radix UI & Citation widgets
+    ├── lib/                 # Auth context, state store (Zustand), API fetchers
+    ├── package.json
+    └── tailwind.config.ts
+```
 
 ---
 
-## Engineering Decisions & Security Designs
+## 🔑 Engineering Decisions
 
-### 1. Multi-Stage Token Rotation (SaaS Auth)
+### 1. Multi-Stage Token Rotation
 *   **Problem**: In single-token API designs, if a client-side JWT is stolen, malicious actors gain indefinite system access.
 *   **Solution**: Implemented access/refresh token rotation. Access tokens are short-lived (`30 minutes`), while refresh tokens exist for `7 days` and are rotated upon every validation cycle.
 *   **Security Enforcement**: When a user logs out, the access token signature is cached in MongoDB under a denylist collection with a TTL index matching its expiration timestamp. This prevents session hijack attempts using discarded tokens.
 
-### 2. File and Vector Segregation
-*   To keep database transactions fast and responsive, database loads are segregated based on operational usage:
+### 2. Segregation of Data Boundaries
+*   To keep database operations fast, datastores are segregated based on operational tasks:
     *   **Supabase Storage** hosts the heavy raw binary files (PDFs, DOCX).
     *   **Pinecone** is used exclusively for vector similarity search, preventing CPU-intensive calculations on relational or document servers.
     *   **MongoDB Atlas** stores metadata references and text chunks, facilitating high-speed citation retrieval.
 
 ---
 
-## Challenges Solved
+## 🔒 Security Specifications
 
-### Handling High-Throughput Token Streams
-*   **Challenge**: Streaming inference text using traditional REST API endpoints can create latency and memory bloat on client-side requests, especially under connection dropouts.
-*   **Solution**: Leveraged FastAPI's `StreamingResponse` to push generator-driven SSE payloads. The Next.js frontend uses low-level `ReadableStream` readers to capture, decode, and append text deltas dynamically to UI elements without page-wide state re-renders.
-
-### Asynchronous In-Memory Ingestion Bottlenecks
-*   **Challenge**: Synchronously waiting for Gemini to embed hundreds of document text chunks inside a single HTTP request can cause gateway timeouts.
-*   **Solution**: Built a modular background processing task structure in `services/document.py` using Python's standard `BackgroundTasks` client. The API responds immediately with status `processing` upon saving the source file to Supabase, while background processes handle chunking, vector embedding, and Pinecone upserts asynchronously.
+*   **Role-Based Access Control (RBAC)**: Custom middlewares check token scopes, enforcing document deletions to administrative roles.
+*   **Secure Cookies**: Auth tokens are transferred via HttpOnly, Secure, and SameSite cookies, shielding the application from XSS vector vulnerabilities.
+*   **Email Verification**: Standard SMTP routing requires new signups to verify email ownership via dynamic OTP codes before profiles are activated.
 
 ---
 
-## Future Roadmap
+## ⚡ Performance Tuning
 
-1.  **Distributed Worker Ingestion**: Transition from basic FastAPI local `BackgroundTasks` to a distributed queue system using Celery and Redis to isolate text parsing and vector calculations.
-2.  **Redis Authentication Cache**: Move access-token denylist and OTP storage from MongoDB Atlas to a high-speed Redis cluster to minimize latency on request authentication middleware.
-3.  **Payment Integrations**: Implement Stripe billing models with subscription plans to manage maximum document sizes and message volume quotas.
-4.  **Hybrid BM25 Vector Search**: Combine Pinecone semantic search results with local sparse BM25 indexing to optimize search retrieval for exact keywords and code segments.
+*   **Background Tasks**: Document chunking and embedding pipelines run on FastAPI's `BackgroundTasks`, releasing the API request thread immediately.
+*   **Low-Level Stream Buffering**: Uses Next.js streams to output token deltas to UI elements without triggering full React page re-renders.
+*   **Isolated Namespacing**: Pinecone vector queries are filtered by user namespaces, reducing retrieval search space and increasing query throughput.
 
 ---
 
-## Contributing
+## 🔮 Future Improvements
 
-Contributions are welcome. Please open an issue first to discuss the features you want to contribute.
+1.  **Celery + Redis Worker Pools**: Offload document calculations to isolated distributed worker processes.
+2.  **Redis Cache Integration**: Migrate JWT denylists to an in-memory Redis node to achieve sub-millisecond lookup times during API authorization.
+3.  **Stripe Billing Integration**: Implement credit quotas and subscription management to enforce usage limits.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome. Please open an issue first to discuss changes before submitting a pull request.
 
 1. Fork the Repository.
 2. Create a branch (`git checkout -b feature/improvement`).
@@ -290,6 +356,6 @@ Contributions are welcome. Please open an issue first to discuss the features yo
 
 ---
 
-## License
+## 📄 License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+MIT License — see [LICENSE](LICENSE) for details.
