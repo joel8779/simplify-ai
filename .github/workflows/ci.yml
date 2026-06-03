@@ -28,6 +28,8 @@ jobs:
         env:
           MONGODB_URI: mongodb://localhost:27017/test
           JWT_SECRET_KEY: ci_test_secret_key_32_characters_minimum_value
+          PINECONE_API_KEY: ci_dummy_pinecone_key
+          PINECONE_INDEX_NAME: ci-test-index
         run: python -m pytest tests/unit
 
 
