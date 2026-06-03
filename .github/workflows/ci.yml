@@ -25,7 +25,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Run unit tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017/test
+          JWT_SECRET_KEY: ci_dummy_secret
         run: python -m pytest tests/unit
+
 
   frontend-build:
     runs-on: ubuntu-latest
