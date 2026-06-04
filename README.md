@@ -1,5 +1,9 @@
 # Simplify AI
 
+[![CI Status](https://github.com/joel8779/simplify-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/joel8779/simplify-ai/actions/workflows/ci.yml)
+[![Last Commit](https://img.shields.io/github/last-commit/joel8779/simplify-ai)](https://github.com/joel8779/simplify-ai/commits/main)
+
+
 > **Full-Stack SaaS RAG Platform** — Secure document retrieval, conversational QA, and semantic search.
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-teal?style=flat-square&logo=vercel)](https://simplify-ai-lilac.vercel.app/)
