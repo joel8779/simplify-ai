@@ -64,7 +64,7 @@ export function HeroSection() {
           >
             <span className="inline-flex items-center gap-1.5 rounded border border-border/80 bg-muted/30 px-2.5 py-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              ENV: PRODUCTION
+              ENV: CONFIGURED
             </span>
             <span className="inline-flex items-center gap-1.5 rounded border border-border/80 bg-muted/30 px-2.5 py-1">
               <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />

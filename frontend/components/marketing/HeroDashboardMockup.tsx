@@ -47,9 +47,9 @@ export function HeroDashboardMockup() {
                 </h3>
                 <div className="space-y-1.5">
                   {[
-                    { name: "policy_v4.pdf", chunks: 24 },
-                    { name: "soc2_report.pdf", chunks: 142 },
-                    { name: "api_key_policy.md", chunks: 8 },
+                    { name: "policy_sample.pdf", chunks: 24 },
+                    { name: "soc2_sample.pdf", chunks: 142 },
+                    { name: "api_key_policy_example.md", chunks: 8 },
                   ].map((doc) => (
                     <div
                       key={doc.name}
@@ -75,11 +75,11 @@ export function HeroDashboardMockup() {
                 <div className="space-y-1 font-mono text-[10px] text-muted-foreground">
                   <div className="flex justify-between">
                     <span>Index:</span>
-                    <span className="text-foreground">simplify-prod</span>
+                    <span className="text-foreground">simplify-demo</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Namespace:</span>
-                    <span className="text-foreground">usr_92f81</span>
+                    <span className="text-foreground">usr_demo_92f81</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Metric:</span>
@@ -107,19 +107,19 @@ export function HeroDashboardMockup() {
               <div className="space-y-1.5 rounded border border-border/40 bg-muted/10 p-2.5 font-mono text-[10px] text-muted-foreground">
                 <div className="flex justify-between">
                   <span>[10:33:41.02] EMBEDDING_GEN</span>
-                  <span className="text-foreground">gemini-embeddings [42ms]</span>
+                  <span className="text-foreground">embeddings generator [~40ms]</span>
                 </div>
                 <div className="flex justify-between">
                   <span>[10:33:41.07] VECTOR_MATCH</span>
-                  <span className="text-foreground">Pinecone (top-3) [84ms]</span>
+                  <span className="text-foreground">vector similarity [~80ms]</span>
                 </div>
                 <div className="flex justify-between">
                   <span>[10:33:41.15] CONTEXT_BUILD</span>
-                  <span className="text-foreground">1,152 tokens [4ms]</span>
+                  <span className="text-foreground">context compiled [~5ms]</span>
                 </div>
                 <div className="flex justify-between border-t border-border/30 pt-1.5 mt-1.5 font-medium text-indigo-400">
                   <span>[10:33:41.16] LLM_RESPONSE</span>
-                  <span>gemini-1.5-flash [710ms]</span>
+                  <span>context inference [~700ms]</span>
                 </div>
               </div>
 
@@ -130,8 +130,8 @@ export function HeroDashboardMockup() {
                   "...Log data is retained for 90 days. After this retention period, audit logs are permanently deleted..."
                 </p>
                 <div className="mt-2 flex items-center justify-between border-t border-border/30 pt-1.5 text-[10px] text-muted-foreground font-mono">
-                  <span>source: policy_v4.pdf</span>
-                  <span>similarity: 0.892</span>
+                  <span>source: policy_sample.pdf</span>
+                  <span>relevance: high</span>
                 </div>
               </div>
             </div>
